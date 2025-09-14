@@ -2,7 +2,18 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Realtime updates with socket.io
     if (window.io) {
-        const socket = io('http://localhost:3000');
+        const socket = io('http://localhost:3000', {
+            transports: ['polling', 'websocket']
+        });
+        
+        socket.on('connect', function() {
+            console.log('Socket.IO connected');
+        });
+        
+        socket.on('connect_error', function(error) {
+            console.log('Socket.IO connection error:', error);
+        });
+        
         socket.on('new-campaign', function(campaign) {
             const container = document.getElementById('campaigns-container');
             if (container && campaign) {

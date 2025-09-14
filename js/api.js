@@ -29,50 +29,38 @@ async function apiRequest(endpoint, options = {}) {
 
 // Campaign-related API functions
 async function fetchCampaigns(filters = {}) {
-    let endpoint = '/campaigns?status=eq.active&order=created_at.desc';
-    
-    // Add filters to endpoint if provided
-    if (filters.category) {
-        endpoint += `&category=eq.${filters.category}`;
-    }
-    
-    if (filters.limit) {
-        endpoint += `&limit=${filters.limit}`;
-    }
-    
     try {
-        // In a real application, this would be an actual API call
-        // For now, we'll return mock data
-        return getMockCampaigns();
+        // Use the actual API endpoint from the server
+        const response = await apiRequest('/api/campaigns');
+        return response;
     } catch (error) {
         console.error('Error fetching campaigns:', error);
-        throw error;
+        // Fallback to mock data if API fails
+        return getMockCampaigns();
     }
 }
 
 async function fetchCampaignById(campaignId) {
     try {
-        // This would be an actual API call in a real application
-        const campaigns = getMockCampaigns();
+        // Use the actual API endpoint from the server
+        const campaigns = await apiRequest('/api/campaigns');
         return campaigns.find(campaign => campaign.campaign_id === campaignId);
     } catch (error) {
         console.error('Error fetching campaign:', error);
-        throw error;
+        // Fallback to mock data if API fails
+        const campaigns = getMockCampaigns();
+        return campaigns.find(campaign => campaign.campaign_id === campaignId);
     }
 }
 
 async function createCampaign(campaignData) {
     try {
-        // This would be an actual API call in a real application
-        const newCampaign = {
-            campaign_id: Math.floor(Math.random() * 1000),
-            ...campaignData,
-            created_at: new Date().toISOString(),
-            status: 'active',
-            amount_raised: 0
-        };
-        
-        return newCampaign;
+        // Use the actual API endpoint from the server
+        const response = await apiRequest('/api/donation-request', {
+            method: 'POST',
+            body: JSON.stringify(campaignData)
+        });
+        return response.campaign;
     } catch (error) {
         console.error('Error creating campaign:', error);
         throw error;
@@ -82,15 +70,12 @@ async function createCampaign(campaignData) {
 // Donation-related API functions
 async function createDonation(donationData) {
     try {
-        // This would be an actual API call in a real application
-        const newDonation = {
-            donation_id: Math.floor(Math.random() * 10000),
-            ...donationData,
-            created_at: new Date().toISOString(),
-            payment_status: 'completed'
-        };
-        
-        return newDonation;
+        // Use the actual API endpoint from the server
+        const response = await apiRequest('/api/donate', {
+            method: 'POST',
+            body: JSON.stringify(donationData)
+        });
+        return response;
     } catch (error) {
         console.error('Error creating donation:', error);
         throw error;

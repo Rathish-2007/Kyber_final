@@ -2,7 +2,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Realtime updates with socket.io
     if (window.io) {
-        const socket = io('http://localhost:3000', {
+        const isLiveServer = window.location.port === '5500' || window.location.hostname === '127.0.0.1';
+        const socketUrl = isLiveServer ? 'http://localhost:3000' : `http://${window.location.host}`;
+        
+        const socket = io(socketUrl, {
             transports: ['polling', 'websocket']
         });
         
@@ -55,7 +58,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const messageDiv = document.getElementById('donation-request-message');
             messageDiv.textContent = 'Submitting...';
             try {
-                const res = await fetch('http://localhost:3000/api/donation-request', {
+                // Use the same API detection logic as api.js
+                const isLiveServer = window.location.port === '5500' || window.location.hostname === '127.0.0.1';
+                const apiBaseUrl = isLiveServer ? 'http://localhost:3000' : `http://${window.location.host}`;
+                
+                const res = await fetch(`${apiBaseUrl}/api/donation-request`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ requester, title, description, goal })
@@ -196,7 +203,10 @@ async function loadCampaigns() {
         container.innerHTML = '<div class="loading">Loading campaigns...</div>';
 
         // Fetch campaigns from backend API
-        const res = await fetch('http://localhost:3000/api/campaigns');
+        const isLiveServer = window.location.port === '5500' || window.location.hostname === '127.0.0.1';
+        const apiBaseUrl = isLiveServer ? 'http://localhost:3000' : `http://${window.location.host}`;
+        
+        const res = await fetch(`${apiBaseUrl}/api/campaigns`);
         const campaigns = await res.json();
 
         // Display campaigns

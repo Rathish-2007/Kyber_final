@@ -1,5 +1,7 @@
 // API Integration Functions
-const API_BASE_URL = 'http://localhost:3000'; // Change this to your actual API URL
+// Detect if running on Live Server (port 5500) or direct server (port 3000)
+const isLiveServer = window.location.port === '5500' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = isLiveServer ? 'http://localhost:3000' : `http://${window.location.host}`;
 
 // Generic API request function
 async function apiRequest(endpoint, options = {}) {

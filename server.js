@@ -13,11 +13,11 @@ let app, server, io, pool;
 async function initializeDatabase() {
     // Use a single client for initialization, not a whole pool
     const client = new Client({
-        user: process.env.PGUSER,
-        host: process.env.PGHOST,
-        database: process.env.PGDATABASE,
-        password: process.env.PGPASSWORD,
-        port: process.env.PGPORT,
+        user: process.env.PGUSER || 'postgres',
+        host: process.env.PGHOST || 'localhost',
+        database: process.env.PGDATABASE || 'crowdfunding_db',
+        password: process.env.PGPASSWORD || 'password',
+        port: process.env.PGPORT || 5432,
     });
     try {
         await client.connect();
@@ -31,6 +31,8 @@ async function initializeDatabase() {
         console.log('Database initialized successfully from database-schema.sql.');
     } catch (err) {
         console.error('Database initialization failed:', err);
+        console.log('Please make sure PostgreSQL is running and the database exists.');
+        console.log('You can create the database with: createdb crowdfunding_db');
     } finally {
         await client.end();
     }
@@ -39,17 +41,37 @@ async function initializeDatabase() {
 // Initialize DB, then create pool, app, endpoints, and start server
 initializeDatabase().then(() => {
     pool = new Pool({
-        user: process.env.PGUSER,
-        host: process.env.PGHOST,
-        database: process.env.PGDATABASE,
-        password: process.env.PGPASSWORD,
-        port: process.env.PGPORT,
+        user: process.env.PGUSER || 'postgres',
+        host: process.env.PGHOST || 'localhost',
+        database: process.env.PGDATABASE || 'crowdfunding_db',
+        password: process.env.PGPASSWORD || 'password',
+        port: process.env.PGPORT || 5432,
     });
     app = express();
     server = http.createServer(app);
-    io = socketIo(server);
+    io = socketIo(server, {
+        cors: {
+            origin: "*",
+            methods: ["GET", "POST"],
+            allowedHeaders: ["Content-Type"],
+            credentials: true
+        }
+    });
 
     app.use(express.json());
+    
+    // Enable CORS for Live Server compatibility
+    app.use((req, res, next) => {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+        if (req.method === 'OPTIONS') {
+            res.sendStatus(200);
+        } else {
+            next();
+        }
+    });
+    
     // Static file serving is fine as is
     app.use(express.static(path.join(__dirname)));
 
@@ -80,18 +102,24 @@ initializeDatabase().then(() => {
         }
     });
 
-    // API endpoint to create a donation request (campaign) is mostly fine
+    // API endpoint to create a donation request (campaign)
     app.post('/api/donation-request', async (req, res) => {
-        // ... (your existing code is okay for a demo, but for production, consider a proper user lookup)
-        // For brevity, the logic is kept the same, but the response will be handled by the /api/campaigns refresh
         const { requester, title, description, goal } = req.body;
-        // ... validation ...
+        
+        // Basic validation
+        if (!requester || !title || !description || !goal) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
         try {
-            // ... (your user and campaign insertion logic)
-            // The io.emit can be improved to send the full campaign object with creator name
-            // but for simplicity, we'll just trigger a refetch on the client side
-             const shortDesc = description.length > 100 ? description.substring(0, 100) + '...' : description;
+            const shortDesc = description.length > 100 ? description.substring(0, 100) + '...' : description;
+            const goalAmount = parseFloat(goal);
+            
+            if (isNaN(goalAmount) || goalAmount <= 0) {
+                return res.status(400).json({ error: 'Invalid goal amount' });
+            }
 
+<<<<<<< HEAD
             // Build email in JS to avoid type conflict
             const email = `${requester}@example.com`;
             const userResult = await pool.query(
@@ -103,6 +131,19 @@ initializeDatabase().then(() => {
             const campaignResult = await pool.query(
                 'INSERT INTO campaigns (title, description, short_description, goal_amount, creator_id, category, end_date, status) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL \'30 days\', $7) RETURNING *',
                 [title, description, shortDesc, parseFloat(goal), creator_id, 'General', 'active']
+=======
+            // Insert or get user
+            const userResult = await pool.query(
+                "INSERT INTO users (username, email, password_hash, first_name) VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username RETURNING user_id", 
+                [requester, requester + '@example.com', 'hash', requester]
+            );
+            const creator_id = userResult.rows[0].user_id;
+
+            // Insert campaign with proper type casting
+            const campaignResult = await pool.query(
+                'INSERT INTO campaigns (title, description, short_description, goal_amount, creator_id, category, end_date, status) VALUES ($1, $2, $3, $4::decimal, $5::uuid, $6, NOW() + INTERVAL \'30 days\', $7) RETURNING *', 
+                [title, description, shortDesc, goalAmount, creator_id, 'General', 'active']
+>>>>>>> ceddd3020aefaa0f07abf7d6886943c95b30eefe
             );
 
             io.emit('new-campaign', campaignResult.rows[0]); // Client should ideally refetch the full list
@@ -136,11 +177,11 @@ initializeDatabase().then(() => {
             await client.query('BEGIN');
 
             // 1. Insert donor record
-            const donorInsertQuery = 'INSERT INTO donors (campaign_id, name, email, amount, wallet) VALUES ($1, $2, $3, $4, $5)';
+            const donorInsertQuery = 'INSERT INTO donors (campaign_id, name, email, amount, wallet) VALUES ($1::uuid, $2, $3, $4::decimal, $5)';
             await client.query(donorInsertQuery, [campaign_id, name, email, donationAmount, wallet]);
 
             // 2. Update campaign's amount_raised
-            const campaignUpdateQuery = 'UPDATE campaigns SET amount_raised = amount_raised + $1 WHERE campaign_id = $2 RETURNING amount_raised';
+            const campaignUpdateQuery = 'UPDATE campaigns SET amount_raised = amount_raised + $1::decimal WHERE campaign_id = $2::uuid RETURNING amount_raised';
             const updatedCampaign = await client.query(campaignUpdateQuery, [donationAmount, campaign_id]);
 
             // Commit the transaction

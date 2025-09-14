@@ -62,7 +62,11 @@
             return;
         }
         try {
-            const res = await fetch('/api/donate', {
+            // Use the same API detection logic as api.js
+            const isLiveServer = window.location.port === '5500' || window.location.hostname === '127.0.0.1';
+            const apiBaseUrl = isLiveServer ? 'http://localhost:3000' : `http://${window.location.host}`;
+            
+            const res = await fetch(`${apiBaseUrl}/api/donate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ campaign_id: campaignId, name, email, amount, wallet })

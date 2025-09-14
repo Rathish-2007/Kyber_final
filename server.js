@@ -92,11 +92,18 @@ initializeDatabase().then(() => {
             // but for simplicity, we'll just trigger a refetch on the client side
              const shortDesc = description.length > 100 ? description.substring(0, 100) + '...' : description;
 
-            // Simplified for example
-            const userResult = await pool.query("INSERT INTO users (username, email, password_hash, first_name) VALUES ($1, $1 || '@example.com', 'hash', $1) ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username RETURNING user_id", [requester]);
+            // Build email in JS to avoid type conflict
+            const email = `${requester}@example.com`;
+            const userResult = await pool.query(
+                "INSERT INTO users (username, email, password_hash, first_name) VALUES ($1, $2, 'hash', $3) ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username RETURNING user_id",
+                [requester, email, requester]
+            );
             const creator_id = userResult.rows[0].user_id;
 
-            const campaignResult = await pool.query('INSERT INTO campaigns (title, description, short_description, goal_amount, creator_id, category, end_date, status) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL \'30 days\', $7) RETURNING *', [title, description, shortDesc, parseFloat(goal), creator_id, 'General', 'active']);
+            const campaignResult = await pool.query(
+                'INSERT INTO campaigns (title, description, short_description, goal_amount, creator_id, category, end_date, status) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL \'30 days\', $7) RETURNING *',
+                [title, description, shortDesc, parseFloat(goal), creator_id, 'General', 'active']
+            );
 
             io.emit('new-campaign', campaignResult.rows[0]); // Client should ideally refetch the full list
             res.json({ success: true, campaign: campaignResult.rows[0] });
@@ -110,8 +117,18 @@ initializeDatabase().then(() => {
     // API endpoint to handle donations WITH A TRANSACTION
     app.post('/api/donate', async (req, res) => {
         const { campaign_id, name, email, amount, wallet } = req.body;
-        // ... (your existing validation)
+        console.log('Received donation request:', req.body);
+        if (!campaign_id || !name || !email || !amount || !wallet) {
+            return res.status(400).json({ error: 'All fields are required.' });
+        }
+        // Validate campaign_id is a UUID (basic check)
+        if (!/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/.test(campaign_id)) {
+            return res.status(400).json({ error: 'Invalid campaign_id format. Must be a UUID.' });
+        }
         const donationAmount = parseFloat(amount);
+        if (isNaN(donationAmount) || donationAmount <= 0) {
+            return res.status(400).json({ error: 'Donation amount must be a positive number.' });
+        }
 
         const client = await pool.connect(); // Get a client from the pool
         try {
@@ -141,7 +158,7 @@ initializeDatabase().then(() => {
             // If any error occurs, rollback the transaction
             await client.query('ROLLBACK');
             console.error('Donation DB error (transaction rolled back):', err);
-            res.status(500).json({ error: 'Database error during donation.' });
+            res.status(500).json({ error: 'Database error during donation.', details: err.message });
         } finally {
             // Release the client back to the pool
             client.release();

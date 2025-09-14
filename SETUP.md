@@ -35,7 +35,7 @@ PORT=3000
    npm start
    ```
 
-3. Open your browser and go to `http://localhost:3000`
+3. ~~Open your browser and go to `http://localhost:3000`~~
 
 ## Troubleshooting
 

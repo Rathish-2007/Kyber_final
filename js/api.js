@@ -11,24 +11,19 @@ async function apiRequest(endpoint, options = {}) {
         headers: {
             'Content-Type': 'application/json',
         },
-    };
-    
+    };  
     const config = { ...defaultOptions, ...options };
-    
     try {
         const response = await fetch(url, config);
-        
         if (!response.ok) {
             throw new Error(`API error: ${response.status} ${response.statusText}`);
         }
-        
         return await response.json();
     } catch (error) {
         console.error('API request failed:', error);
         throw error;
     }
 }
-
 // Campaign-related API functions
 async function fetchCampaigns(filters = {}) {
     try {

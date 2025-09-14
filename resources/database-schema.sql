@@ -2,7 +2,8 @@
 -- This schema follows best practices for PostgreSQL database design
 
 -- Enable UUID extension for unique identifiers
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+DROP EXTENSION IF EXISTS "uuid-ossp"; 
+CREATE EXTENSION "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS users (
     user_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

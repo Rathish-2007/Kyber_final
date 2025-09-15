@@ -1,3 +1,8 @@
+-- User rewards table for tracking reward points
+CREATE TABLE IF NOT EXISTS user_rewards (
+    email VARCHAR(255) PRIMARY KEY,
+    reward_points DECIMAL(20,2) NOT NULL DEFAULT 0
+);
 -- Crowdfunding Platform Database Schema
 -- This schema follows best practices for PostgreSQL database design
 

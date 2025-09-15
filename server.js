@@ -119,19 +119,6 @@ initializeDatabase().then(() => {
                 return res.status(400).json({ error: 'Invalid goal amount' });
             }
 
-<<<<<<< HEAD
-            // Build email in JS to avoid type conflict
-            const email = `${requester}@example.com`;
-            const userResult = await pool.query(
-                "INSERT INTO users (username, email, password_hash, first_name) VALUES ($1, $2, 'hash', $3) ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username RETURNING user_id",
-                [requester, email, requester]
-            );
-            const creator_id = userResult.rows[0].user_id;
-
-            const campaignResult = await pool.query(
-                'INSERT INTO campaigns (title, description, short_description, goal_amount, creator_id, category, end_date, status) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL \'30 days\', $7) RETURNING *',
-                [title, description, shortDesc, parseFloat(goal), creator_id, 'General', 'active']
-=======
             // Insert or get user
             const userResult = await pool.query(
                 "INSERT INTO users (username, email, password_hash, first_name) VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username RETURNING user_id", 
@@ -143,7 +130,6 @@ initializeDatabase().then(() => {
             const campaignResult = await pool.query(
                 'INSERT INTO campaigns (title, description, short_description, goal_amount, creator_id, category, end_date, status) VALUES ($1, $2, $3, $4::decimal, $5::uuid, $6, NOW() + INTERVAL \'30 days\', $7) RETURNING *', 
                 [title, description, shortDesc, goalAmount, creator_id, 'General', 'active']
->>>>>>> ceddd3020aefaa0f07abf7d6886943c95b30eefe
             );
 
             io.emit('new-campaign', campaignResult.rows[0]); // Client should ideally refetch the full list
@@ -184,6 +170,14 @@ initializeDatabase().then(() => {
             const campaignUpdateQuery = 'UPDATE campaigns SET amount_raised = amount_raised + $1::decimal WHERE campaign_id = $2::uuid RETURNING amount_raised';
             const updatedCampaign = await client.query(campaignUpdateQuery, [donationAmount, campaign_id]);
 
+            // 3. Add 10% of donation as reward for the user
+            const reward = donationAmount * 0.10;
+            await client.query(
+                `INSERT INTO user_rewards (email, reward_points) VALUES ($1, $2)
+                 ON CONFLICT (email) DO UPDATE SET reward_points = user_rewards.reward_points + $2`,
+                [email, reward]
+            );
+
             // Commit the transaction
             await client.query('COMMIT');
 
@@ -193,7 +187,7 @@ initializeDatabase().then(() => {
                 new_amount_raised: updatedCampaign.rows[0].amount_raised
             });
 
-            res.json({ success: true });
+            res.json({ success: true, reward });
 
         } catch (err) {
             // If any error occurs, rollback the transaction

@@ -1,17 +1,18 @@
 // Basic Express server with PostgreSQL connection using dotenv
 require('dotenv').config();
 const express = require('express');
-const { Pool, Client } = require('pg'); // Import Client as well
+const { Pool, Client } = require('pg');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 const port = 3000;
+
 let app, server, io, pool;
 
-// Read and execute the schema SQL file to initialize the database
 async function initializeDatabase() {
-    // Use a single client for initialization, not a whole pool
     const client = new Client({
         user: process.env.PGUSER || 'postgres',
         host: process.env.PGHOST || 'localhost',
@@ -20,25 +21,29 @@ async function initializeDatabase() {
         port: process.env.PGPORT || 5432,
     });
     try {
+        console.log('Attempting to connect to database...');
         await client.connect();
+        console.log('Connected to database successfully');
+        
         const schemaPath = path.join(__dirname, 'resources', 'database-schema.sql');
+        console.log('Reading schema from:', schemaPath);
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-
-        // Execute the entire file as a single query. No need to split.
-        // Make sure your database-schema.sql uses "CREATE TABLE IF NOT EXISTS"
+        
+        console.log('Executing database schema...');
         await client.query(schemaSql);
-
-        console.log('Database initialized successfully from database-schema.sql.');
+        console.log('Database initialized successfully.');
     } catch (err) {
         console.error('Database initialization failed:', err);
-        console.log('Please make sure PostgreSQL is running and the database exists.');
-        console.log('You can create the database with: createdb crowdfunding_db');
+        console.log('Please ensure:');
+        console.log('1. PostgreSQL is running');
+        console.log('2. Database "crowdfunding_db" exists');
+        console.log('3. User has proper permissions');
+        console.log('4. Check your .env file configuration');
     } finally {
         await client.end();
     }
 }
 
-// Initialize DB, then create pool, app, endpoints, and start server
 initializeDatabase().then(() => {
     pool = new Pool({
         user: process.env.PGUSER || 'postgres',
@@ -49,161 +54,151 @@ initializeDatabase().then(() => {
     });
     app = express();
     server = http.createServer(app);
-    io = socketIo(server, {
-        cors: {
-            origin: "*",
-            methods: ["GET", "POST"],
-            allowedHeaders: ["Content-Type"],
-            credentials: true
-        }
-    });
+    io = socketIo(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
     app.use(express.json());
-    
-    // Enable CORS for Live Server compatibility
     app.use((req, res, next) => {
         res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-        if (req.method === 'OPTIONS') {
-            res.sendStatus(200);
-        } else {
-            next();
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+        next();
+    });
+    app.use(express.static(path.join(__dirname)));
+
+    io.on('connection', (socket) => { console.log('A user connected'); });
+
+    // AUTHENTICATION ENDPOINTS
+    app.post('/api/signup', async (req, res) => {
+        const { username, email, first_name, last_name, password } = req.body;
+        if (!username || !email || !password || !first_name) {
+            return res.status(400).json({ error: 'All fields are required.' });
+        }
+        try {
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+            const result = await pool.query(
+                'INSERT INTO users (username, email, password_hash, first_name, last_name) VALUES ($1, $2, $3, $4, $5) RETURNING user_id',
+                [username, email, hashedPassword, first_name, last_name]
+            );
+            res.status(201).json({ success: true, userId: result.rows[0].user_id });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: 'User with this email or username may already exist.' });
+        }
+    });
+
+    app.post('/api/login', async (req, res) => {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required.' });
+        }
+        try {
+            const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+            if (result.rows.length === 0) {
+                return res.status(401).json({ error: 'Invalid credentials.' });
+            }
+            const user = result.rows[0];
+            const match = await bcrypt.compare(password, user.password_hash);
+            if (match) {
+                delete user.password_hash; // Don't send hash to client
+                res.json({ success: true, user });
+            } else {
+                res.status(401).json({ error: 'Invalid credentials.' });
+            }
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: 'Server error during login.' });
+        }
+    });
+
+    // PROFILE ENDPOINT
+    app.get('/api/profile/:userId', async (req, res) => {
+        const { userId } = req.params;
+        try {
+            const campaignsRes = await pool.query('SELECT * FROM campaigns WHERE creator_id = $1 ORDER BY created_at DESC', [userId]);
+            const donationsMadeRes = await pool.query(
+                'SELECT t.amount, t.transaction_date, t.is_anonymous, c.title as campaign_title FROM transactions t JOIN campaigns c ON t.campaign_id = c.campaign_id WHERE t.donor_id = $1 ORDER BY t.transaction_date DESC',
+                [userId]
+            );
+            const donationsReceivedRes = await pool.query(
+                `SELECT t.amount, t.transaction_date, t.is_anonymous, t.donor_name, c.title as campaign_title 
+                 FROM transactions t 
+                 JOIN campaigns c ON t.campaign_id = c.campaign_id
+                 WHERE c.creator_id = $1 ORDER BY t.transaction_date DESC`,
+                [userId]
+            );
+
+            res.json({
+                created_campaigns: campaignsRes.rows,
+                donations_made: donationsMadeRes.rows,
+                donations_received: donationsReceivedRes.rows
+            });
+        } catch (err) {
+            console.error('Error fetching profile data:', err);
+            res.status(500).json({ error: 'Database error fetching profile data.' });
         }
     });
     
-    // Static file serving is fine as is
-    app.use(express.static(path.join(__dirname)));
-
-
-    // Socket.io connection
-    io.on('connection', (socket) => {
-        console.log('A user connected');
-        socket.on('disconnect', () => {
-            console.log('A user disconnected');
-        });
-    });
-
-    // API endpoint to fetch all campaigns with creator's name
+    // CAMPAIGN & DONATION ENDPOINTS (Updated)
     app.get('/api/campaigns', async (req, res) => {
         try {
-            // Join with users table to get the creator's name
             const query = `
-                SELECT c.*, u.first_name as creator_name
+                SELECT c.*, u.first_name || ' ' || u.last_name as creator_name
                 FROM campaigns c
                 JOIN users u ON c.creator_id = u.user_id
+                WHERE c.status = 'active'
                 ORDER BY c.created_at DESC
             `;
             const result = await pool.query(query);
             res.json(result.rows);
         } catch (err) {
-            console.error('Error fetching campaigns:', err);
-            res.status(500).json({ error: 'Database error fetching campaigns.' });
+            console.error(err);
+            res.status(500).json({ error: 'Database error.' });
         }
     });
 
-    // API endpoint to create a donation request (campaign)
     app.post('/api/donation-request', async (req, res) => {
-        const { requester, title, description, goal } = req.body;
-        
-        // Basic validation
-        if (!requester || !title || !description || !goal) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        const { title, description, goal, creator_id } = req.body;
+        if (!title || !description || !goal || !creator_id) {
+            return res.status(400).json({ error: 'Missing required fields.' });
         }
-        
         try {
-            const shortDesc = description.length > 100 ? description.substring(0, 100) + '...' : description;
-            const goalAmount = parseFloat(goal);
-            
-            if (isNaN(goalAmount) || goalAmount <= 0) {
-                return res.status(400).json({ error: 'Invalid goal amount' });
-            }
-
-            // Insert or get user
-            const userResult = await pool.query(
-                "INSERT INTO users (username, email, password_hash, first_name) VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username RETURNING user_id", 
-                [requester, requester + '@example.com', 'hash', requester]
-            );
-            const creator_id = userResult.rows[0].user_id;
-
-            // Insert campaign with proper type casting
             const campaignResult = await pool.query(
                 'INSERT INTO campaigns (title, description, short_description, goal_amount, creator_id, category, end_date, status) VALUES ($1, $2, $3, $4::decimal, $5::uuid, $6, NOW() + INTERVAL \'30 days\', $7) RETURNING *', 
-                [title, description, shortDesc, goalAmount, creator_id, 'General', 'active']
+                [title, description, description.substring(0,100), parseFloat(goal), creator_id, 'Community', 'active']
             );
-
-            io.emit('new-campaign', campaignResult.rows[0]); // Client should ideally refetch the full list
             res.json({ success: true, campaign: campaignResult.rows[0] });
-
         } catch (err) {
-            console.error('Donation request DB error:', err);
-            res.status(500).json({ error: 'Database error creating request.' });
+            console.error(err);
+            res.status(500).json({ error: 'Database error.' });
         }
     });
 
-    // API endpoint to handle donations WITH A TRANSACTION
     app.post('/api/donate', async (req, res) => {
-        const { campaign_id, name, email, amount, wallet } = req.body;
-        console.log('Received donation request:', req.body);
-        if (!campaign_id || !name || !email || !amount || !wallet) {
-            return res.status(400).json({ error: 'All fields are required.' });
-        }
-        // Validate campaign_id is a UUID (basic check)
-        if (!/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/.test(campaign_id)) {
-            return res.status(400).json({ error: 'Invalid campaign_id format. Must be a UUID.' });
-        }
+        const { campaign_id, name, email, amount, wallet, user_id, is_anonymous } = req.body;
         const donationAmount = parseFloat(amount);
-        if (isNaN(donationAmount) || donationAmount <= 0) {
-            return res.status(400).json({ error: 'Donation amount must be a positive number.' });
-        }
-
-        const client = await pool.connect(); // Get a client from the pool
+        const client = await pool.connect();
         try {
-            // Start the transaction
             await client.query('BEGIN');
-
-            // 1. Insert donor record
-            const donorInsertQuery = 'INSERT INTO donors (campaign_id, name, email, amount, wallet) VALUES ($1::uuid, $2, $3, $4::decimal, $5)';
-            await client.query(donorInsertQuery, [campaign_id, name, email, donationAmount, wallet]);
-
-            // 2. Update campaign's amount_raised
+            const donorInsertQuery = `
+                INSERT INTO transactions (campaign_id, donor_id, amount, is_anonymous, donor_name, donor_email, wallet_address) 
+                VALUES ($1::uuid, $2::uuid, $3::decimal, $4, $5, $6, $7)
+            `;
+            await client.query(donorInsertQuery, [campaign_id, user_id || null, donationAmount, is_anonymous || false, name, email, wallet]);
             const campaignUpdateQuery = 'UPDATE campaigns SET amount_raised = amount_raised + $1::decimal WHERE campaign_id = $2::uuid RETURNING amount_raised';
             const updatedCampaign = await client.query(campaignUpdateQuery, [donationAmount, campaign_id]);
-
-            // 3. Add 10% of donation as reward for the user
-            const reward = donationAmount * 0.10;
-            await client.query(
-                `INSERT INTO user_rewards (email, reward_points) VALUES ($1, $2)
-                 ON CONFLICT (email) DO UPDATE SET reward_points = user_rewards.reward_points + $2`,
-                [email, reward]
-            );
-
-            // Commit the transaction
             await client.query('COMMIT');
-
-            // Emit the updated amount to all clients
             io.emit('donation-update', {
                 campaign_id: campaign_id,
                 new_amount_raised: updatedCampaign.rows[0].amount_raised
             });
-
-            res.json({ success: true, reward });
-
+            res.json({ success: true });
         } catch (err) {
-            // If any error occurs, rollback the transaction
             await client.query('ROLLBACK');
-            console.error('Donation DB error (transaction rolled back):', err);
-            res.status(500).json({ error: 'Database error during donation.', details: err.message });
+            console.error('Donation DB error:', err);
+            res.status(500).json({ error: 'Database error during donation.' });
         } finally {
-            // Release the client back to the pool
             client.release();
         }
     });
 
-    // The static middleware already handles serving index.html for the '/' route
-    // So the app.get('/') is not needed unless it's a specific SPA fallback like app.get('*', ...)
-
-    server.listen(port, () => {
-        console.log(`Server running on http://localhost:${port}`);
-    });
+    server.listen(port, () => { console.log(`Server running on http://localhost:${port}`); });
 });

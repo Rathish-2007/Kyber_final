@@ -48,16 +48,23 @@ CREATE TABLE IF NOT EXISTS campaigns (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Drop old donors table if it exists
 DROP TABLE IF EXISTS donors CASCADE;
-CREATE TABLE donors (
-    donor_id SERIAL PRIMARY KEY,
+
+-- New transactions table to log all donations
+CREATE TABLE IF NOT EXISTS transactions (
+    transaction_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     campaign_id UUID REFERENCES campaigns(campaign_id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    donor_id UUID REFERENCES users(user_id) ON DELETE SET NULL, -- Can be NULL for non-logged-in users
     amount DECIMAL(15, 2) NOT NULL,
-    wallet VARCHAR(100) NOT NULL,
-    donated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    transaction_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    is_anonymous BOOLEAN DEFAULT FALSE,
+    -- Fields for non-logged-in donors
+    donor_name VARCHAR(100),
+    donor_email VARCHAR(255),
+    wallet_address VARCHAR(255)
 );
+
 CREATE TABLE IF NOT EXISTS rewards (
     reward_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     campaign_id UUID REFERENCES campaigns(campaign_id) ON DELETE CASCADE,
@@ -70,29 +77,20 @@ CREATE TABLE IF NOT EXISTS rewards (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-
--- Rewards table for campaign incentive tiers
-
-
-
 -- Indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_campaigns_creator ON campaigns(creator_id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
 CREATE INDEX IF NOT EXISTS idx_campaigns_category ON campaigns(category);
+CREATE INDEX IF NOT EXISTS idx_transactions_donor ON transactions(donor_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_campaign ON transactions(campaign_id);
 
 
 -- Sample data insertion
-
--- Insert sample users only if table is empty
 INSERT INTO users (username, email, password_hash, first_name, last_name, is_verified)
 SELECT * FROM (
     VALUES
-    ('sarahj', 'sarah@example.com', 'hashed_password_1', 'Sarah', 'Johnson', true),
-    ('alexr', 'alex@example.com', 'hashed_password_2', 'Alex', 'Rivera', true),
-    ('communitygt', 'community@example.com', 'hashed_password_3', 'Community', 'Green Team', true)
+    ('sarahj', 'sarah@example.com', '$2b$10$f/..somehash', 'Sarah', 'Johnson', true),
+    ('alexr', 'alex@example.com', '$2b$10$f/..somehash', 'Alex', 'Rivera', true),
+    ('communitygt', 'community@example.com', '$2b$10$f/..somehash', 'Community', 'Green Team', true)
 ) AS v(username, email, password_hash, first_name, last_name, is_verified)
 WHERE NOT EXISTS (SELECT 1 FROM users);
-
--- Insert sample campaigns only if table is empty
-
--- Insert sample campaigns only if table is empty

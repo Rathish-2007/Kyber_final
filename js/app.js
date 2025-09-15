@@ -193,13 +193,15 @@ function openDetailsForCampaign(campaign) {
     const total = Number(campaign.amount_raised || 0);
     const userName = campaign.creator_name || 'Unknown Creator';
     const country = randomCountry();
-    const txId = String(campaign.id || campaign.campaign_id || '').replace(/-/g, '').padEnd(64, '0').slice(0,64);
+    let txIdRaw = String(campaign.id || campaign.campaign_id || '').replace(/-/g, '');
+    // Remove trailing zeros and limit to 16 chars
+    let trimmedTxId = txIdRaw.replace(/0+$/, '').slice(0, 16);
     content.innerHTML = `
         <div style="margin:6px 0"><b>Campaign:</b> ${escapeHtml(campaign.title || '')}</div>
         <div style="margin:6px 0"><b>Total Donated:</b> $${total.toLocaleString()}</div>
         <div style="margin:6px 0"><b>User:</b> ${escapeHtml(userName)}</div>
         <div style="margin:6px 0"><b>Country:</b> ${country}</div>
-        <div style="margin:6px 0"><b>Transaction ID:</b> <span style="font-family:monospace">0x${txId}</span></div>
+        <div style="margin:6px 0"><b>Transaction ID:</b> <span style="font-family:monospace">0x${trimmedTxId}</span></div>
     `;
     modal.style.display = 'flex';
 }

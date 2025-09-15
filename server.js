@@ -1,3 +1,4 @@
+    // (Moved /api/wallet/:userId endpoint inside initializeDatabase().then block below)
 // (Removed top-level /api/donations-received endpoint definition. It is now only defined after app is initialized.)
 // (Removed top-level /api/donation-history endpoint definition. It is now only defined after app is initialized.)
 // (Removed duplicate /api/user-rewards endpoint definition. It is now only defined after app is initialized.)
@@ -58,6 +59,137 @@ initializeDatabase().then(() => {
     app = express();
     server = http.createServer(app);
     io = socketIo(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
+
+    // POOLS ENDPOINT: list available pools
+    app.get('/api/pools', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT id, symbol, name, apy, min_amount FROM pools ORDER BY id ASC');
+            res.json({ success: true, pools: result.rows });
+        } catch (err) {
+            console.error('Error fetching pools:', err);
+            res.status(500).json({ success: false, error: 'Database error fetching pools' });
+        }
+    });
+
+    // WALLET ENDPOINT: Get all pool tokens and balances for a user (staking schema)
+    app.get('/api/wallet/:userId', async (req, res) => {
+        const { userId } = req.params;
+        if (!userId) return res.status(400).json({ success: false, error: 'User ID required' });
+        try {
+            // 1. Get the user's email from the main users table (database-schema.sql)
+            const userRes = await pool.query('SELECT email FROM users WHERE user_id = $1', [userId]);
+            if (!userRes.rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+            const email = userRes.rows[0].email;
+            if (!email) return res.status(404).json({ success: false, error: 'No email for user' });
+            // 2. Find staking user by email (staking_users table)
+            const stakeUserRes = await pool.query('SELECT email FROM staking_users WHERE email = $1', [email]);
+            if (!stakeUserRes.rows.length) return res.status(404).json({ success: false, error: 'Staking user not found' });
+            // 3. Fetch wallet tokens for staking user (email is PK)
+            const result = await pool.query(`
+                SELECT w.pool_id, w.balance, p.symbol, p.name, p.apy, p.min_amount
+                FROM wallets w
+                JOIN pools p ON w.pool_id = p.id
+                WHERE w.user_id = $1
+            `, [email]);
+            res.json({ success: true, tokens: result.rows });
+        } catch (err) {
+            console.error('Error fetching wallet tokens:', err);
+            res.status(500).json({ success: false, error: 'Database error fetching wallet tokens' });
+        }
+    });
+
+    // STAKE ENDPOINT: record a stake and update wallet balance
+    app.post('/api/stake', async (req, res) => {
+        // Relaxed payload: only amount and periodMonths required; infer user and default pool
+        const { userId, poolId, amount, periodMonths } = req.body || {};
+        if (!amount || !periodMonths) {
+            return res.status(400).json({ success: false, error: 'amount and periodMonths are required' });
+        }
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            // Resolve email for staking user
+            let effectiveUserId = userId;
+            if (!effectiveUserId) {
+                // Try to read from a header for logged-in user (optional enhancement)
+                effectiveUserId = req.header('x-user-id') || null;
+            }
+            if (!effectiveUserId) {
+                await client.query('ROLLBACK');
+                return res.status(401).json({ success: false, error: 'User not identified' });
+            }
+            const userRes = await client.query('SELECT email FROM users WHERE user_id = $1', [effectiveUserId]);
+            if (!userRes.rows.length) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ success: false, error: 'User not found' });
+            }
+            const email = userRes.rows[0].email;
+            // Ensure staking user exists
+            await client.query('INSERT INTO staking_users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING', [email]);
+            // Choose default pool if not provided: pick first pool
+            let effectivePoolId = poolId;
+            if (!effectivePoolId) {
+                const poolRes = await client.query('SELECT id FROM pools ORDER BY id ASC LIMIT 1');
+                if (!poolRes.rows.length) {
+                    await client.query('ROLLBACK');
+                    return res.status(500).json({ success: false, error: 'No pools configured' });
+                }
+                effectivePoolId = poolRes.rows[0].id;
+            }
+            // Insert stake record (both legacy stakes and stake_pool_tokens for UI)
+            const unlockAtExpr = `NOW() + ($1::int || ' months')::interval`;
+            await client.query(
+                `INSERT INTO stakes (user_id, pool_id, amount, period_months, unlock_at)
+                 VALUES ($1, $2, $3::numeric, $4, ${unlockAtExpr})`,
+                [email, effectivePoolId, amount, periodMonths]
+            );
+            await client.query(
+                `INSERT INTO stake_pool_tokens (user_id, pool_id, amount, period_months, unlock_at)
+                 VALUES ($1, $2, $3::numeric, $4, ${unlockAtExpr})`,
+                [email, effectivePoolId, amount, periodMonths]
+            );
+            // Update wallet balance
+            await client.query(
+                `INSERT INTO wallets (user_id, pool_id, balance) VALUES ($1, $2, $3::numeric)
+                 ON CONFLICT (user_id, pool_id) DO UPDATE SET balance = wallets.balance + EXCLUDED.balance`,
+                [email, effectivePoolId, amount]
+            );
+            await client.query('COMMIT');
+            res.json({ success: true });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error('Error creating stake:', err);
+            res.status(500).json({ success: false, error: 'Database error creating stake' });
+        } finally {
+            client.release();
+        }
+    });
+
+    // List current user's active stakes with remaining time
+    app.get('/api/my-stakes', async (req, res) => {
+        const userId = req.query.userId || req.header('x-user-id');
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'User not identified' });
+        }
+        try {
+            const userRes = await pool.query('SELECT email FROM users WHERE user_id = $1', [userId]);
+            if (!userRes.rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+            const email = userRes.rows[0].email;
+            const result = await pool.query(`
+                SELECT spt.id, spt.amount, spt.period_months, spt.started_at, spt.unlock_at,
+                       p.symbol, p.name,
+                       GREATEST(EXTRACT(EPOCH FROM (spt.unlock_at - NOW())), 0) AS seconds_remaining
+                FROM stake_pool_tokens spt
+                JOIN pools p ON spt.pool_id = p.id
+                WHERE spt.user_id = $1
+                ORDER BY spt.started_at DESC
+            `, [email]);
+            res.json({ success: true, stakes: result.rows });
+        } catch (err) {
+            console.error('Error fetching my-stakes:', err);
+            res.status(500).json({ success: false, error: 'Database error fetching stakes' });
+        }
+    });
 
     app.use(express.json());
     app.use((req, res, next) => {
@@ -237,6 +369,31 @@ initializeDatabase().then(() => {
             console.error('Error fetching user rewards:', err);
             // Return zero instead of failing the UI
             res.json({ success: true, reward_points: 0 });
+        }
+    });
+
+    // USER REWARDS DETAIL: total and per-campaign breakdown
+    app.get('/api/user-rewards-detail', async (req, res) => {
+        const { email } = req.query;
+        if (!email) {
+            return res.status(400).json({ success: false, error: 'Email is required.' });
+        }
+        try {
+            const totalRes = await pool.query('SELECT reward_points FROM user_rewards WHERE email = $1', [email]);
+            const total = totalRes.rows.length ? Number(totalRes.rows[0].reward_points) : 0;
+            const perCampaign = await pool.query(`
+                SELECT ucr.reward_points::numeric AS reward_points,
+                       c.title AS campaign_title,
+                       ucr.campaign_id
+                FROM user_campaign_rewards ucr
+                JOIN campaigns c ON c.campaign_id = ucr.campaign_id
+                WHERE ucr.user_email = $1
+                ORDER BY ucr.last_updated DESC
+            `, [email]);
+            res.json({ success: true, total_reward_points: total, campaigns: perCampaign.rows });
+        } catch (err) {
+            console.error('Error fetching user rewards detail:', err);
+            res.status(500).json({ success: false, error: 'Database error fetching rewards detail' });
         }
     });
 

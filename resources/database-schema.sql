@@ -124,3 +124,75 @@ SELECT * FROM (
     ('communitygt', 'community@example.com', '$2b$10$f/..somehash', 'Community', 'Green Team', true)
 ) AS v(username, email, password_hash, first_name, last_name, is_verified)
 WHERE NOT EXISTS (SELECT 1 FROM users);
+
+-- =============================
+-- Staking subsystem (wallets, pools, stakes)
+-- =============================
+
+-- Users in staking use email as identifier to interop with main users table
+CREATE TABLE IF NOT EXISTS staking_users (
+    email VARCHAR(255) PRIMARY KEY
+);
+
+-- Available staking pools (simple fixed-APY pools)
+CREATE TABLE IF NOT EXISTS pools (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(16) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    apy NUMERIC(6,2) NOT NULL DEFAULT 5.00,
+    min_amount NUMERIC(20,8) NOT NULL DEFAULT 0.01000000
+);
+
+-- Wallet balances per staking user per pool
+CREATE TABLE IF NOT EXISTS wallets (
+    user_id VARCHAR(255) NOT NULL,
+    pool_id INTEGER NOT NULL REFERENCES pools(id) ON DELETE CASCADE,
+    balance NUMERIC(30,8) NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, pool_id)
+);
+CREATE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id);
+CREATE INDEX IF NOT EXISTS idx_wallets_pool ON wallets(pool_id);
+
+-- Stakes ledger
+CREATE TABLE IF NOT EXISTS stakes (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    pool_id INTEGER NOT NULL REFERENCES pools(id) ON DELETE CASCADE,
+    amount NUMERIC(30,8) NOT NULL,
+    period_months INTEGER NOT NULL,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_stakes_user ON stakes(user_id);
+CREATE INDEX IF NOT EXISTS idx_stakes_pool ON stakes(pool_id);
+
+-- Add unlock_at for showing remaining time (safe to run multiple times)
+ALTER TABLE stakes ADD COLUMN IF NOT EXISTS unlock_at TIMESTAMP WITH TIME ZONE;
+
+-- Dedicated table to record pool token stakes for auditing and UI
+CREATE TABLE IF NOT EXISTS stake_pool_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    pool_id INTEGER NOT NULL REFERENCES pools(id) ON DELETE CASCADE,
+    amount NUMERIC(30,8) NOT NULL,
+    period_months INTEGER NOT NULL,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    unlock_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(20) NOT NULL DEFAULT 'locked'
+);
+CREATE INDEX IF NOT EXISTS idx_stake_pool_tokens_user ON stake_pool_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_stake_pool_tokens_pool ON stake_pool_tokens(pool_id);
+
+-- Seed default pools if none exist
+INSERT INTO pools (symbol, name, apy, min_amount)
+SELECT * FROM (
+    VALUES
+    ('POOL', 'Core Pool Token', 5.00, 0.01000000),
+    ('POOLX', 'Growth Pool Token', 12.00, 0.05000000)
+) AS v(symbol, name, apy, min_amount)
+WHERE NOT EXISTS (SELECT 1 FROM pools);
+
+-- Seed staking users for existing sample users (by email) if they don't exist
+INSERT INTO staking_users (email)
+SELECT u.email FROM users u
+LEFT JOIN staking_users su ON su.email = u.email
+WHERE su.email IS NULL;

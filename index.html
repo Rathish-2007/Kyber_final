@@ -45,9 +45,11 @@
     </header>
 
     <!-- Donation Request Form -->
-    <!-- Create a Request Button -->
+    <!-- Create a Request Button and Stake Tokens Button -->
     <div style="text-align:center; margin: 32px 0; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
     <button id="open-donation-modal" class="btn btn-primary" style="font-size:1.1em; padding: 12px 32px;">Create a Request</button>
+    <!-- Removed old staking modal and its JS logic. Use 'View My Rewards' for staking. -->
+    <button id="stake-tokens-btn" class="btn btn-primary" style="font-size:1.1em; padding: 12px 32px; background: #6366f1; color: #fff; border: none; border-radius: 6px;">Stake Tokens</button>
     <button id="view-rewards-btn" class="btn btn-success" style="font-size:1.1em; padding: 12px 32px; background: #38a169; color: #fff; border: none; border-radius: 6px;">View My Rewards</button>
     <button id="view-history-btn" class="btn btn-secondary" style="font-size:1.1em; padding: 12px 32px; background: #4a5568; color: #fff; border: none; border-radius: 6px;">History</button>
     <div style="display:flex; gap:8px; align-items:center;">
@@ -122,38 +124,232 @@
     </script>
     <!-- View My Rewards Modal -->
     <div id="rewards-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:400px; width:90%; margin:auto; position:relative;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:600px; width:95%; margin:auto; position:relative;">
             <button id="close-rewards-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
             <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">My Pool Token Rewards</h2>
-            <div id="rewards-content" style="text-align:center; font-size:1.2em; margin-top:20px;">Loading...</div>
+            <div id="rewards-content" style="text-align:center; font-size:1em; margin-top:20px;">Loading...</div>
+        </div>
+    </div>
+    <!-- Staking Modal -->
+    <div id="stake-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1001; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:400px; width:90%; margin:auto; position:relative;">
+            <button id="close-stake-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 18px; color: #2d3748;">Stake Pool Token</h2>
+            <div id="stake-form-content"></div>
         </div>
     </div>
     <script>
-    // View My Rewards modal logic
+    // View My Rewards modal logic, staking modal logic, and Stake Tokens button logic
     document.addEventListener('DOMContentLoaded', function() {
+        // Stake Tokens button logic
+        const stakeTokensBtn = document.getElementById('stake-tokens-btn');
+        if (stakeTokensBtn) {
+            stakeTokensBtn.addEventListener('click', async function() {
+                // Fetch available pool tokens for the user
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                let userId = user && user.user_id ? user.user_id : null;
+                if (!userId) {
+                    alert('You must be logged in to stake tokens.');
+                    return;
+                }
+                // Fetch pools (or wallet tokens)
+                let pools = [];
+                try {
+                    const res = await fetch(`/api/pools`);
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        pools = data.pools || [];
+                    }
+                } catch (e) {}
+                if (!pools.length) {
+                    alert('No pool tokens available for staking.');
+                    return;
+                }
+                // Show a selection modal if more than one pool, else go directly
+                if (pools.length === 1) {
+                    showStakeModal({
+                        symbol: pools[0].symbol,
+                        name: pools[0].name,
+                        id: pools[0].id || pools[0].pool_id,
+                        min_amount: 0.01,
+                        amount: 0
+                    });
+                } else {
+                    // Show a simple selection UI in the stake modal
+                    stakeFormContent.innerHTML = `<div style='margin-bottom:12px;'><b>Select a Pool Token to Stake:</b></div>` +
+                        pools.map(p => `<button class='btn btn-primary select-pool-btn' data-symbol='${p.symbol}' data-name='${p.name}' data-id='${p.id || p.pool_id}' style='margin:4px 0;width:100%;'>${p.symbol} (${p.name})</button>`).join('') +
+                        `<div style='margin-top:16px;'><button id='cancel-stake-select' class='btn btn-secondary' style='width:100%;'>Cancel</button></div>`;
+                    stakeModal.style.display = 'flex';
+                    document.querySelectorAll('.select-pool-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const symbol = btn.getAttribute('data-symbol');
+                            const name = btn.getAttribute('data-name');
+                            const id = btn.getAttribute('data-id');
+                            showStakeModal({ symbol, name, id, min_amount: 0.01, amount: 0 });
+                        });
+                    });
+                    document.getElementById('cancel-stake-select').addEventListener('click', function() {
+                        stakeModal.style.display = 'none';
+                    });
+                }
+            });
+        }
         const viewRewardsBtn = document.getElementById('view-rewards-btn');
         const rewardsModal = document.getElementById('rewards-modal');
         const closeRewardsBtn = document.getElementById('close-rewards-modal');
         const rewardsContent = document.getElementById('rewards-content');
+        const stakeModal = document.getElementById('stake-modal');
+        const closeStakeModal = document.getElementById('close-stake-modal');
+        const stakeFormContent = document.getElementById('stake-form-content');
+        let rewardsData = [];
+        let selectedToken = null;
+        let selectedPeriod = 12;
+        let accepted = false;
+
+        function showStakeModal(token) {
+            selectedToken = token;
+            selectedPeriod = 12;
+            accepted = false;
+            renderStakeForm();
+            stakeModal.style.display = 'flex';
+        }
+
+        function renderStakeForm() {
+            if (!selectedToken) return;
+            const apyMap = {1: 1, 12: 5, 24: 12};
+            const apy = apyMap[selectedPeriod];
+            const minAmount = selectedToken.amount > 0 ? 0.01 : selectedToken.min_amount;
+            stakeFormContent.innerHTML = `
+                <div style="margin-bottom:10px;"><b>Token:</b> ${selectedToken.symbol} (${selectedToken.name})</div>
+                <div style="margin-bottom:10px;"><b>APY:</b> <span id='stake-apy'>${apy}%</span> <span title='What is staking?' style='cursor:help;color:#3182ce;'>&#9432;</span></div>
+                <div style="margin-bottom:10px;">
+                    <label>Amount to Stake:</label><br>
+                    <input id='stake-amount' type='number' min='${minAmount}' step='0.01' value='${minAmount}' inputmode='decimal' style='width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid #cbd5e1;'>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>Staking Period:</label><br>
+                    <select id='stake-period' style='width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid #cbd5e1;'>
+                        <option value='1'>1 Month (1% APY)</option>
+                        <option value='12' selected>1 Year (5% APY)</option>
+                        <option value='24'>2 Years (12% APY)</option>
+                    </select>
+                </div>
+                <div id='projected-rewards' style='margin-bottom:10px;'></div>
+                <div style='font-size:0.95em; color:#555; margin-bottom:10px;'>
+                    <b>What is staking?</b> Staking locks your tokens for a period to help secure the network and earn rewards. You cannot withdraw until the period ends.
+                </div>
+                <div style='margin-bottom:10px;'><label><input type='checkbox' id='accept-staking'> I understand and accept the staking terms.</label></div>
+                <button id='confirm-stake-btn' class='btn btn-primary' style='width:100%;' disabled>Confirm Stake</button>
+            `;
+            // Add listeners
+            const stakeAmountEl = document.getElementById('stake-amount');
+            const stakePeriodEl = document.getElementById('stake-period');
+            const stakeApyEl = document.getElementById('stake-apy');
+            stakeAmountEl.addEventListener('input', updateProjected);
+            // Prevent mouse wheel from changing amount when focused
+            stakeAmountEl.addEventListener('wheel', (e) => { e.preventDefault(); }, { passive: false });
+            stakePeriodEl.addEventListener('change', function(e) {
+                selectedPeriod = Number(e.target.value);
+                const apyMapLocal = {1: 1, 12: 5, 24: 12};
+                stakeApyEl.textContent = `${apyMapLocal[selectedPeriod]}%`;
+                updateProjected();
+            });
+            document.getElementById('accept-staking').addEventListener('change', function(e) {
+                accepted = e.target.checked;
+                document.getElementById('confirm-stake-btn').disabled = !accepted;
+            });
+            document.getElementById('confirm-stake-btn').addEventListener('click', async function() {
+                if (!accepted) return;
+                const amount = parseFloat(document.getElementById('stake-amount').value);
+                if (isNaN(amount) || amount < minAmount) { alert('Enter a valid amount'); return; }
+                // Call backend
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                if (!user) { alert('You must be logged in'); return; }
+                const res = await fetch('/api/stake', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ amount, periodMonths: selectedPeriod, userId: user.user_id })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert('Stake successful!');
+                    stakeModal.style.display = 'none';
+                    rewardsModal.style.display = 'none';
+                } else {
+                    alert(data.error || 'Stake failed');
+                }
+            });
+            updateProjected();
+        }
+
+        function updateProjected() {
+            const apyMap = {1: 1, 12: 5, 24: 12};
+            const apy = apyMap[selectedPeriod];
+            const amount = parseFloat(document.getElementById('stake-amount').value) || 0;
+            const days = selectedPeriod * 30;
+            const reward = ((amount * apy / 100) * (days / 365)).toFixed(4);
+            document.getElementById('projected-rewards').innerHTML = `<b>Projected Rewards:</b> ${reward}`;
+        }
+
         if (viewRewardsBtn && rewardsModal && closeRewardsBtn) {
             viewRewardsBtn.addEventListener('click', async function() {
                 rewardsModal.style.display = 'flex';
-                // Try to get logged in user email (or prompt)
                 let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
-                let email = user && user.email ? user.email : null;
-                if (!email) {
+                let userId = user && user.user_id ? user.user_id : null;
+                if (!userId) {
                     rewardsContent.textContent = 'You must be logged in to view rewards.';
                     return;
                 }
                 rewardsContent.textContent = 'Loading...';
                 try {
-                    const res = await fetch(`/api/user-rewards?email=${encodeURIComponent(email)}`);
-                    const data = await res.json();
-                    if (res.ok && data.success) {
-                        rewardsContent.innerHTML = `<span style='font-size:2em; color:#38a169; font-weight:bold;'>${data.reward_points}</span> <span style='font-size:1em;'>Pool Tokens</span>`;
+                    const [walletRes, stakesRes, detailRes] = await Promise.all([
+                        fetch(`/api/wallet/${userId}`),
+                        fetch(`/api/my-stakes?userId=${encodeURIComponent(userId)}`),
+                        fetch(`/api/user-rewards-detail?email=${encodeURIComponent(user.email)}`)
+                    ]);
+                    const [walletData, stakesData, detailData] = await Promise.all([walletRes.json(), stakesRes.json(), detailRes.json()]);
+                    let html = '';
+                    if (walletRes.ok && walletData.success && Array.isArray(walletData.tokens) && walletData.tokens.length) {
+                        html += `<h3 style='margin:8px 0;'>Wallet Balances</h3>`;
+                        html += `<table style='width:100%;border-collapse:collapse;'><tr style='background:#f3f4f6;'><th>Token</th><th>Name</th><th>Balance</th><th>APY</th></tr>`;
+                        for (const t of walletData.tokens) {
+                            html += `<tr style='border-bottom:1px solid #e2e8f0;'><td>${t.symbol}</td><td>${t.name}</td><td>${Number(t.balance).toFixed(4)}</td><td>${t.apy}%</td></tr>`;
+                        }
+                        html += '</table>';
                     } else {
-                        rewardsContent.textContent = data.error || 'No rewards found.';
+                        html += '<div style="color:#888;">No pool tokens in your wallet.</div>';
                     }
+                    html += `<hr style='margin:16px 0;'>`;
+                    html += `<h3 style='margin:8px 0;'>Active Stakes</h3>`;
+                    if (stakesRes.ok && stakesData.success && Array.isArray(stakesData.stakes) && stakesData.stakes.length) {
+                        html += `<table style='width:100%;border-collapse:collapse;'><tr style='background:#f3f4f6;'><th>Token</th><th>Amount</th><th>Period</th><th>Unlocks In</th></tr>`;
+                        for (const s of stakesData.stakes) {
+                            const seconds = Math.max(0, Math.floor(Number(s.seconds_remaining || 0)));
+                            const days = Math.floor(seconds / 86400);
+                            const hours = Math.floor((seconds % 86400) / 3600);
+                            const mins = Math.floor((seconds % 3600) / 60);
+                            html += `<tr style='border-bottom:1px solid #e2e8f0;'><td>${s.symbol}</td><td>${Number(s.amount).toFixed(4)}</td><td>${s.period_months} mo</td><td>${days}d ${hours}h ${mins}m</td></tr>`;
+                        }
+                        html += '</table>';
+                    } else {
+                        html += '<div style="color:#888;">No active stakes.</div>';
+                    }
+                    // Rewards detail
+                    if (detailRes.ok && detailData.success) {
+                        html += `<hr style='margin:16px 0;'>`;
+                        html += `<h3 style='margin:8px 0;'>Reward Points</h3>`;
+                        html += `<div style='margin-bottom:8px;'><b>Total:</b> ${Number(detailData.total_reward_points || 0).toFixed(2)}</div>`;
+                        if (Array.isArray(detailData.campaigns) && detailData.campaigns.length) {
+                            html += `<table style='width:100%;border-collapse:collapse;'><tr style='background:#f3f4f6;'><th>Campaign</th><th>Points</th></tr>`;
+                            for (const r of detailData.campaigns) {
+                                html += `<tr style='border-bottom:1px solid #e2e8f0;'><td>${r.campaign_title}</td><td>${Number(r.reward_points).toFixed(2)}</td></tr>`;
+                            }
+                            html += `</table>`;
+                        } else {
+                            html += `<div style='color:#888;'>No rewards yet.</div>`;
+                        }
+                    }
+                    rewardsContent.innerHTML = html;
                 } catch (err) {
                     rewardsContent.textContent = 'Error fetching rewards.';
                 }
@@ -166,6 +362,10 @@
                     rewardsModal.style.display = 'none';
                 }
             });
+        }
+        if (closeStakeModal && stakeModal) {
+            closeStakeModal.addEventListener('click', function() { stakeModal.style.display = 'none'; });
+            window.addEventListener('click', function(e) { if (e.target === stakeModal) stakeModal.style.display = 'none'; });
         }
     });
     </script>

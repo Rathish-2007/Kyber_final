@@ -1,3 +1,33 @@
+-- Table to track pool token rewards per user per campaign (for history and per-campaign rewards)
+CREATE TABLE IF NOT EXISTS user_campaign_rewards (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL,
+    campaign_id UUID NOT NULL,
+    reward_points DECIMAL(20,2) NOT NULL DEFAULT 0,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_campaign FOREIGN KEY (campaign_id) REFERENCES campaigns(campaign_id) ON DELETE CASCADE,
+    CONSTRAINT user_campaign_unique UNIQUE (user_email, campaign_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_campaign_rewards_email ON user_campaign_rewards(user_email);
+CREATE INDEX IF NOT EXISTS idx_user_campaign_rewards_campaign ON user_campaign_rewards(campaign_id);
+
+-- Table to track total pool token rewards per user (for "View My Rewards")
+CREATE TABLE IF NOT EXISTS user_rewards (
+    email VARCHAR(255) PRIMARY KEY,
+    reward_points DECIMAL(20,2) NOT NULL DEFAULT 0
+);
+-- Table to track pool token rewards per user per campaign
+CREATE TABLE IF NOT EXISTS user_campaign_rewards (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL,
+    campaign_id UUID NOT NULL,
+    reward_points DECIMAL(20,2) NOT NULL DEFAULT 0,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_campaign FOREIGN KEY (campaign_id) REFERENCES campaigns(campaign_id) ON DELETE CASCADE,
+    CONSTRAINT user_campaign_unique UNIQUE (user_email, campaign_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_campaign_rewards_email ON user_campaign_rewards(user_email);
+CREATE INDEX IF NOT EXISTS idx_user_campaign_rewards_campaign ON user_campaign_rewards(campaign_id);
 -- User rewards table for tracking reward points
 CREATE TABLE IF NOT EXISTS user_rewards (
     email VARCHAR(255) PRIMARY KEY,

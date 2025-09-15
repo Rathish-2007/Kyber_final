@@ -1,3 +1,6 @@
+// (Removed top-level /api/donations-received endpoint definition. It is now only defined after app is initialized.)
+// (Removed top-level /api/donation-history endpoint definition. It is now only defined after app is initialized.)
+// (Removed duplicate /api/user-rewards endpoint definition. It is now only defined after app is initialized.)
 // Basic Express server with PostgreSQL connection using dotenv
 require('dotenv').config();
 const express = require('express');
@@ -173,7 +176,14 @@ initializeDatabase().then(() => {
     });
 
     app.post('/api/donate', async (req, res) => {
-        const { campaign_id, name, email, amount, wallet, user_id, is_anonymous } = req.body;
+        // Accept both old and new payload shapes
+        const campaign_id = req.body.campaign_id;
+        const donorName = req.body.name || req.body.donor_name || null;
+        const donorEmail = req.body.email || req.body.donor_email || null;
+        const amount = req.body.amount;
+        const wallet = req.body.wallet || req.body.wallet_address || null;
+        const user_id = req.body.user_id || req.body.donor_id || null;
+        const is_anonymous = req.body.is_anonymous || false;
         const donationAmount = parseFloat(amount);
         const client = await pool.connect();
         try {
@@ -182,21 +192,97 @@ initializeDatabase().then(() => {
                 INSERT INTO transactions (campaign_id, donor_id, amount, is_anonymous, donor_name, donor_email, wallet_address) 
                 VALUES ($1::uuid, $2::uuid, $3::decimal, $4, $5, $6, $7)
             `;
-            await client.query(donorInsertQuery, [campaign_id, user_id || null, donationAmount, is_anonymous || false, name, email, wallet]);
+            await client.query(donorInsertQuery, [campaign_id, user_id || null, donationAmount, is_anonymous || false, donorName, donorEmail, wallet]);
             const campaignUpdateQuery = 'UPDATE campaigns SET amount_raised = amount_raised + $1::decimal WHERE campaign_id = $2::uuid RETURNING amount_raised';
             const updatedCampaign = await client.query(campaignUpdateQuery, [donationAmount, campaign_id]);
+            // Add 10% of donation as pool token reward (global)
+            const reward = donationAmount * 0.10;
+            await client.query(
+                `INSERT INTO user_rewards (email, reward_points) VALUES ($1, $2)
+                 ON CONFLICT (email) DO UPDATE SET reward_points = user_rewards.reward_points + $2`,
+                [donorEmail, reward]
+            );
+            // Add/update per-campaign reward
+            await client.query(
+                `INSERT INTO user_campaign_rewards (user_email, campaign_id, reward_points) VALUES ($1, $2, $3)
+                 ON CONFLICT (user_email, campaign_id) DO UPDATE SET reward_points = user_campaign_rewards.reward_points + $3, last_updated = CURRENT_TIMESTAMP`,
+                [donorEmail, campaign_id, reward]
+            );
             await client.query('COMMIT');
             io.emit('donation-update', {
                 campaign_id: campaign_id,
                 new_amount_raised: updatedCampaign.rows[0].amount_raised
             });
-            res.json({ success: true });
+            res.json({ success: true, reward });
         } catch (err) {
             await client.query('ROLLBACK');
             console.error('Donation DB error:', err);
             res.status(500).json({ error: 'Database error during donation.' });
         } finally {
             client.release();
+        }
+    });
+
+    // USER REWARDS ENDPOINT
+    app.get('/api/user-rewards', async (req, res) => {
+        const { email } = req.query;
+        if (!email) {
+            return res.status(400).json({ success: false, error: 'Email is required.' });
+        }
+        try {
+            const result = await pool.query('SELECT reward_points FROM user_rewards WHERE email = $1', [email]);
+            const rewardPoints = result.rows.length > 0 ? Number(result.rows[0].reward_points) : 0;
+            res.json({ success: true, reward_points: rewardPoints });
+        } catch (err) {
+            console.error('Error fetching user rewards:', err);
+            // Return zero instead of failing the UI
+            res.json({ success: true, reward_points: 0 });
+        }
+    });
+
+    // DONATION HISTORY (Donations made by a user email)
+    app.get('/api/donation-history', async (req, res) => {
+        const { email } = req.query;
+        if (!email) {
+            return res.status(400).json({ success: false, error: 'Email is required.' });
+        }
+        try {
+            const query = `
+                SELECT t.amount, t.transaction_date, c.title AS campaign_title
+                FROM transactions t
+                JOIN campaigns c ON t.campaign_id = c.campaign_id
+                WHERE t.donor_email = $1
+                ORDER BY t.transaction_date DESC
+            `;
+            const result = await pool.query(query, [email]);
+            res.json({ success: true, history: result.rows });
+        } catch (err) {
+            console.error('Error fetching donation history:', err);
+            // Return empty history instead of failing the UI
+            res.json({ success: true, history: [] });
+        }
+    });
+
+    // DONATIONS RECEIVED (for campaigns created by a user)
+    app.get('/api/donations-received', async (req, res) => {
+        const { user_id } = req.query;
+        if (!user_id) {
+            return res.status(400).json({ success: false, error: 'user_id is required.' });
+        }
+        try {
+            const query = `
+                SELECT t.amount, t.transaction_date, COALESCE(t.donor_name, 'Anonymous') AS donor_name, c.title AS campaign_title
+                FROM transactions t
+                JOIN campaigns c ON t.campaign_id = c.campaign_id
+                WHERE c.creator_id = $1
+                ORDER BY t.transaction_date DESC
+            `;
+            const result = await pool.query(query, [user_id]);
+            res.json({ success: true, donations: result.rows });
+        } catch (err) {
+            console.error('Error fetching donations received:', err);
+            // Return empty list instead of failing the UI
+            res.json({ success: true, donations: [] });
         }
     });
 

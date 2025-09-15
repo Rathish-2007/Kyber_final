@@ -84,6 +84,13 @@
                 messageDiv.textContent = 'Thank you for your donation!';
                 messageDiv.style.color = 'green';
                 document.getElementById('donation-form').reset();
+                setTimeout(() => {
+                    if (document.referrer) {
+                        window.location.href = document.referrer;
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                }, 2000);
             } else {
                 messageDiv.textContent = data.error || 'Donation failed.';
                 messageDiv.style.color = 'red';

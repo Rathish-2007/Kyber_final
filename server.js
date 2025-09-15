@@ -20,15 +20,18 @@ let app, server, io, pool;
 // --- ETH REWARD CONFIG (optional). If not configured, donations still succeed ---
 const ETH_RPC_URL = process.env.ETH_RPC_URL || 'http://127.0.0.1:8545';
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY || null; // optional
+const REWARD_PERCENT_OF_DOLLARS_AS_ETH = Number(process.env.REWARD_PERCENT_OF_DOLLARS_AS_ETH || '0.01'); // 1% default
+const REWARD_MAX_ETH = process.env.REWARD_MAX_ETH ? ethers.parseEther(process.env.REWARD_MAX_ETH) : ethers.parseEther('0.1'); // cap per donation
+const TREASURY_MIN_RESERVE_ETH = process.env.TREASURY_MIN_RESERVE_ETH ? ethers.parseEther(process.env.TREASURY_MIN_RESERVE_ETH) : 0n; // keep some balance untouched
 let ethProvider = null;
 let treasurySigner = null;
 try {
-    ethProvider = new ethers.JsonRpcProvider(ETH_RPC_URL);
-    if (TREASURY_PRIVATE_KEY) {
-        treasurySigner = new ethers.Wallet(TREASURY_PRIVATE_KEY, ethProvider);
-    }
+	ethProvider = new ethers.JsonRpcProvider(ETH_RPC_URL);
+	if (TREASURY_PRIVATE_KEY) {
+		treasurySigner = new ethers.Wallet(TREASURY_PRIVATE_KEY, ethProvider);
+	}
 } catch (e) {
-    console.warn('ETH provider not available; rewards will be skipped.');
+	console.warn('ETH provider not available; rewards will be skipped.');
 }
 
 // --- [No changes in the initializeDatabase() or the initial setup] ---
@@ -235,12 +238,12 @@ initializeDatabase().then(() => {
         try {
             await client.query('BEGIN');
             
-            // 1. Log the fiat donation to your database (your original logic)
+            // 1. Log the fiat donation to your database
             const donorInsertQuery = `
                 INSERT INTO transactions (campaign_id, donor_id, amount, is_anonymous, donor_name, donor_email, wallet_address) 
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
             `;
-            await client.query(donorInsertQuery, [campaign_id, user_id || null, donationAmount, is_anonymous || false, name, email, wallet]);
+            await client.query(donorInsertQuery, [campaign_id, user_id || null, donationAmount, is_anonymous || false, donorName, donorEmail, wallet]);
             
             const campaignUpdateQuery = 'UPDATE campaigns SET amount_raised = amount_raised + $1 WHERE campaign_id = $2 RETURNING amount_raised';
             const updatedCampaign = await client.query(campaignUpdateQuery, [donationAmount, campaign_id]);
@@ -248,20 +251,89 @@ initializeDatabase().then(() => {
             await client.query('COMMIT');
 
             // Optional ETH reward, best-effort and non-blocking
-            if (treasurySigner && wallet) {
+            (async () => {
                 try {
-                    const rewardAmountETH = (donationAmount * 0.01).toString();
-                    const tx = await treasurySigner.sendTransaction({
+                    if (!treasurySigner || !wallet) {
+                        console.log('ETH reward skipped (no signer configured or wallet missing).');
+                        return;
+                    }
+                    if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
+                        console.log('Invalid wallet address provided; skipping ETH reward.');
+                        return;
+                    }
+                    if (!Number.isFinite(donationAmount) || donationAmount <= 0) {
+                        console.log('Invalid donation amount; skipping ETH reward.');
+                        return;
+                    }
+
+                    // Calculate reward: percent of dollar amount, denominated directly as ETH units
+                    // Example: $100 with 1% -> 1 ETH (on private chain). Configure via REWARD_PERCENT_OF_DOLLARS_AS_ETH and REWARD_MAX_ETH.
+                    let rewardAmountETHFloat = donationAmount * REWARD_PERCENT_OF_DOLLARS_AS_ETH;
+                    if (rewardAmountETHFloat <= 0) return;
+                    let rewardValueWei = ethers.parseEther(rewardAmountETHFloat.toString());
+                    if (rewardValueWei > REWARD_MAX_ETH) {
+                        rewardValueWei = REWARD_MAX_ETH;
+                    }
+
+                    // Check treasury balance and gas affordability
+                    const signerAddress = await treasurySigner.getAddress();
+                    const [balanceWei, feeData] = await Promise.all([
+                        ethProvider.getBalance(signerAddress),
+                        ethProvider.getFeeData()
+                    ]);
+
+                    // Build tx request
+                    const txRequest = {
                         to: wallet,
-                        value: ethers.parseEther(rewardAmountETH)
-                    });
+                        value: rewardValueWei
+                    };
+
+                    // Estimate gas and set fees depending on EIP-1559 support
+                    let gasLimit;
+                    try {
+                        gasLimit = await treasurySigner.estimateGas(txRequest);
+                    } catch (e) {
+                        gasLimit = 21000n;
+                    }
+
+                    const supportsEip1559 = feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null;
+                    let gasCost;
+                    let finalTxFields = { ...txRequest, gasLimit };
+
+                    if (supportsEip1559) {
+                        const maxFeePerGas = feeData.maxFeePerGas || 1n;
+                        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || 1n;
+                        gasCost = gasLimit * maxFeePerGas;
+                        finalTxFields.maxFeePerGas = maxFeePerGas;
+                        finalTxFields.maxPriorityFeePerGas = maxPriorityFeePerGas;
+                    } else {
+                        const gasPrice = feeData.gasPrice || ethers.parseUnits('1', 'gwei');
+                        gasCost = gasLimit * gasPrice;
+                        finalTxFields.gasPrice = gasPrice;
+                    }
+
+                    let totalCost = rewardValueWei + gasCost + TREASURY_MIN_RESERVE_ETH;
+                    if (balanceWei < totalCost) {
+                        // Downsize reward to fit balance while leaving reserve
+                        const affordableReward = balanceWei > (gasCost + TREASURY_MIN_RESERVE_ETH)
+                            ? balanceWei - gasCost - TREASURY_MIN_RESERVE_ETH
+                            : 0n;
+                        if (affordableReward <= 0n) {
+                            console.log('Treasury balance insufficient for gas+reserve; skipping ETH reward.');
+                            return;
+                        }
+                        rewardValueWei = affordableReward;
+                        finalTxFields.value = rewardValueWei;
+                        totalCost = rewardValueWei + gasCost + TREASURY_MIN_RESERVE_ETH;
+                        console.log('Downsized reward to fit available balance.');
+                    }
+
+                    const tx = await treasurySigner.sendTransaction(finalTxFields);
                     console.log(`ETH reward sent! Transaction Hash: ${tx.hash}`);
                 } catch (rewardErr) {
                     console.warn('Skipping ETH reward due to error:', rewardErr.message);
                 }
-            } else {
-                console.log('ETH reward skipped (no signer configured or wallet missing).');
-            }
+            })();
 
             // Notify clients and respond
             io.emit('donation-update', {

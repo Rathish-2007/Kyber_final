@@ -128,7 +128,8 @@ class DonationHandler {
                 donor_name: this.donorInfo.name,
                 donor_email: this.donorInfo.email,
                 is_anonymous: this.donorInfo.anonymous || false,
-                message: this.donorInfo.message || ''
+                message: this.donorInfo.message || '',
+                wallet_address: this.donorInfo.wallet || null
             };
             
             const result = await createDonation(donationData);
@@ -147,12 +148,18 @@ class DonationHandler {
             name: document.getElementById('donor-name')?.value || '',
             email: document.getElementById('donor-email')?.value || '',
             anonymous: document.getElementById('anonymous-donation')?.checked || false,
-            message: document.getElementById('donation-message')?.value || ''
+            message: document.getElementById('donation-message')?.value || '',
+            wallet: (document.getElementById('donor-wallet')?.value || '').trim()
         };
     }
     
     validateDonorInfo() {
-        return this.donorInfo.name && this.donorInfo.email;
+        const hasBasicInfo = this.donorInfo.name && this.donorInfo.email;
+        const wallet = this.donorInfo.wallet;
+        if (!wallet) return hasBasicInfo; // wallet optional
+        // Basic ETH address format check (0x-prefixed, 40 hex chars)
+        const isEthAddress = /^0x[a-fA-F0-9]{40}$/.test(wallet);
+        return hasBasicInfo && isEthAddress;
     }
     
     showProcessing() {

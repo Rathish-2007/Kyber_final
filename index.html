@@ -46,8 +46,129 @@
 
     <!-- Donation Request Form -->
     <!-- Create a Request Button -->
-    <div style="text-align:center; margin: 32px 0;">
-        <button id="open-donation-modal" class="btn btn-primary" style="font-size:1.1em; padding: 12px 32px;">Create a Request</button>
+    <div style="text-align:center; margin: 32px 0; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+    <button id="open-donation-modal" class="btn btn-primary" style="font-size:1.1em; padding: 12px 32px;">Create a Request</button>
+    <button id="view-rewards-btn" class="btn btn-success" style="font-size:1.1em; padding: 12px 32px; background: #38a169; color: #fff; border: none; border-radius: 6px;">View My Rewards</button>
+    <button id="view-history-btn" class="btn btn-secondary" style="font-size:1.1em; padding: 12px 32px; background: #4a5568; color: #fff; border: none; border-radius: 6px;">History</button>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <input id="campaign-search-input" type="text" placeholder="Enter Campaign ID (UUID)" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; min-width:320px;">
+        <button id="campaign-search-btn" class="btn btn-outline" style="padding: 10px 18px;">Search Campaign</button>
+    </div>
+    <!-- Donation History Modal -->
+    <div id="history-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:600px; width:95%; margin:auto; position:relative;">
+            <button id="close-history-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">Donation History</h2>
+            <div id="history-content" style="text-align:left; font-size:1em; margin-top:20px; max-height:350px; overflow-y:auto;">Loading...</div>
+        </div>
+    </div>
+    <script>
+    // Donation History modal logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewHistoryBtn = document.getElementById('view-history-btn');
+        const historyModal = document.getElementById('history-modal');
+        const closeHistoryBtn = document.getElementById('close-history-modal');
+        const historyContent = document.getElementById('history-content');
+        if (viewHistoryBtn && historyModal && closeHistoryBtn) {
+            viewHistoryBtn.addEventListener('click', async function() {
+                historyModal.style.display = 'flex';
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                let email = user && user.email ? user.email : null;
+                let userId = user && user.user_id ? user.user_id : null;
+                if (!email || !userId) {
+                    historyContent.textContent = 'You must be logged in to view donation history.';
+                    return;
+                }
+                historyContent.textContent = 'Loading...';
+                try {
+                    // Fetch donations made
+                    const madeRes = await fetch(`/api/donation-history?email=${encodeURIComponent(email)}`);
+                    const madeData = await madeRes.json();
+                    // Fetch donations received
+                    const receivedRes = await fetch(`/api/donations-received?user_id=${encodeURIComponent(userId)}`);
+                    const receivedData = await receivedRes.json();
+                    let html = `<h3 style='margin-bottom:8px;'>Donations I've Made</h3>`;
+                    if (madeRes.ok && madeData.success && madeData.history.length > 0) {
+                        html += madeData.history.map(h =>
+                            `<div style='margin-bottom:10px;'>You donated <b>$${h.amount}</b> to campaign: "${h.campaign_title}"<br><span style='font-size:0.95em;color:#666;'>On: ${new Date(h.transaction_date).toLocaleDateString()}</span></div>`
+                        ).join('');
+                    } else {
+                        html += `<div style='color:#888;'>You have not made any donations yet.</div>`;
+                    }
+                    html += `<hr style='margin:18px 0;'>`;
+                    html += `<h3 style='margin-bottom:8px;'>Donations Received for My Campaigns</h3>`;
+                    if (receivedRes.ok && receivedData.success && receivedData.donations.length > 0) {
+                        html += receivedData.donations.map(d =>
+                            `<div style='margin-bottom:10px;'>You received <b>$${d.amount}</b> from <b>${d.donor_name || 'Anonymous'}</b> for campaign: "${d.campaign_title}"<br><span style='font-size:0.95em;color:#666;'>On: ${new Date(d.transaction_date).toLocaleDateString()}</span></div>`
+                        ).join('');
+                    } else {
+                        html += `<div style='color:#888;'>Your campaigns have not received any donations yet.</div>`;
+                    }
+                    historyContent.innerHTML = html;
+                } catch (err) {
+                    historyContent.textContent = 'Error fetching history.';
+                }
+            });
+            closeHistoryBtn.addEventListener('click', function() {
+                historyModal.style.display = 'none';
+            });
+            window.addEventListener('click', function(e) {
+                if (e.target === historyModal) {
+                    historyModal.style.display = 'none';
+                }
+            });
+        }
+    });
+    </script>
+    <!-- View My Rewards Modal -->
+    <div id="rewards-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:400px; width:90%; margin:auto; position:relative;">
+            <button id="close-rewards-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">My Pool Token Rewards</h2>
+            <div id="rewards-content" style="text-align:center; font-size:1.2em; margin-top:20px;">Loading...</div>
+        </div>
+    </div>
+    <script>
+    // View My Rewards modal logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewRewardsBtn = document.getElementById('view-rewards-btn');
+        const rewardsModal = document.getElementById('rewards-modal');
+        const closeRewardsBtn = document.getElementById('close-rewards-modal');
+        const rewardsContent = document.getElementById('rewards-content');
+        if (viewRewardsBtn && rewardsModal && closeRewardsBtn) {
+            viewRewardsBtn.addEventListener('click', async function() {
+                rewardsModal.style.display = 'flex';
+                // Try to get logged in user email (or prompt)
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                let email = user && user.email ? user.email : null;
+                if (!email) {
+                    rewardsContent.textContent = 'You must be logged in to view rewards.';
+                    return;
+                }
+                rewardsContent.textContent = 'Loading...';
+                try {
+                    const res = await fetch(`/api/user-rewards?email=${encodeURIComponent(email)}`);
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        rewardsContent.innerHTML = `<span style='font-size:2em; color:#38a169; font-weight:bold;'>${data.reward_points}</span> <span style='font-size:1em;'>Pool Tokens</span>`;
+                    } else {
+                        rewardsContent.textContent = data.error || 'No rewards found.';
+                    }
+                } catch (err) {
+                    rewardsContent.textContent = 'Error fetching rewards.';
+                }
+            });
+            closeRewardsBtn.addEventListener('click', function() {
+                rewardsModal.style.display = 'none';
+            });
+            window.addEventListener('click', function(e) {
+                if (e.target === rewardsModal) {
+                    rewardsModal.style.display = 'none';
+                }
+            });
+        }
+    });
+    </script>
     </div>
 
     <!-- Donation Request Modal -->
@@ -247,5 +368,18 @@
     <script src="js/components/campaign-loader.js"></script>
     <script src="js/components/donation-handler.js"></script>
     <script src="js/app.js"></script>
+    <!-- (Removed Rewards modal and related JS: rewards are now automatic) -->
+
+    <!-- Simple Details Modal -->
+    <div id="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:28px; max-width:460px; width:92%; position:relative;">
+            <button id="details-close" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom:16px; color:#2d3748;">Campaign Details</h2>
+            <div id="details-content" style="font-size:1.05em; color:#2d3748; line-height:1.6"></div>
+            <div style="text-align:center; margin-top:20px;">
+                <button id="details-ok" class="btn btn-primary" style="padding:10px 22px;">OK</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

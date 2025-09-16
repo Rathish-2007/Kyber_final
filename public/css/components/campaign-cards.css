@@ -1,0 +1,30 @@
+.campaign-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px #6366f11a;
+    padding: 24px;
+    margin-bottom: 24px;
+    transition: box-shadow 0.2s;
+}
+.campaign-card:hover {
+    box-shadow: 0 6px 24px #6366f133;
+}
+.campaign-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #22223b;
+    margin-bottom: 8px;
+}
+.campaign-desc {
+    color: #475569;
+    margin-bottom: 12px;
+}
+.campaign-goal {
+    color: #6366f1;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+.campaign-meta {
+    color: #64748b;
+    font-size: 0.97em;
+}

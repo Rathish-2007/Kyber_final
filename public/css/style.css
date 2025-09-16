@@ -1,0 +1,377 @@
+.stake-modal-card.nft-style {
+    position: relative;
+    background: #f8fafc;
+    border-radius: 32px;
+    box-shadow: 0 8px 32px 0 rgba(60,60,120,0.18), 0 1.5px 8px #6366f133;
+    max-width: 420px;
+    width: 97%;
+    margin: auto;
+    overflow: hidden;
+    border: 1.5px solid rgba(99,102,241,0.13);
+    padding: 0;
+    animation: modalPopIn 0.45s cubic-bezier(.4,0,.2,1);
+}
+.stake-modal-gradient-bg {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(ellipse at 60% 0%, #a78bfa 0%, #6366f1 60%, #7c3aed 100%);
+    opacity: 0.18;
+    z-index: 0;
+}
+.stake-modal-content {
+    position: relative;
+    z-index: 1;
+    padding: 38px 32px 32px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.stake-modal-icon-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.stake-modal-icon-title i.fa-coins {
+    font-size: 2.7em;
+    color: #7c3aed;
+    background: #ede9fe;
+    border-radius: 50%;
+    padding: 18px;
+    box-shadow: 0 2px 12px #a78bfa33;
+}
+.stake-modal-icon-title h2 {
+    font-size: 2em;
+    font-weight: 800;
+    color: #7c3aed;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+.stake-modal-desc {
+    color: #6d6d8b;
+    font-size: 1.13em;
+    margin-bottom: 22px;
+    text-align: center;
+    font-weight: 500;
+}
+.stake-modal-close {
+    position: absolute;
+    top: 18px; right: 24px;
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: #a78bfa;
+    cursor: pointer;
+    z-index: 2;
+    transition: color 0.2s;
+}
+.stake-modal-close:hover {
+    color: #f87171;
+}
+.stake-modal-body, .stake-modal-content {
+    width: 100%;
+}
+.stake-modal-body input[type="number"],
+.stake-modal-body select,
+.stake-modal-content input[type="number"],
+.stake-modal-content select {
+    width: 100%;
+    padding: 14px 16px;
+    margin-top: 8px;
+    border-radius: 16px;
+    border: 1.5px solid #cbd5e1;
+    font-size: 1.13em;
+    background: #f3f4f6;
+    transition: border 0.2s, box-shadow 0.2s;
+    outline: none;
+    margin-bottom: 18px;
+}
+.stake-modal-body input[type="number"]:focus,
+.stake-modal-body select:focus,
+.stake-modal-content input[type="number"]:focus,
+.stake-modal-content select:focus {
+    border: 1.5px solid #a78bfa;
+    box-shadow: 0 0 0 2px #a78bfa33;
+}
+.stake-modal-content .btn,
+.stake-modal-body .btn {
+    width: 100%;
+    border-radius: 18px;
+    font-size: 1.13em;
+    font-weight: 700;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 12px #a78bfa22;
+    padding: 15px 0;
+    transition: background 0.2s, box-shadow 0.2s, filter 0.2s;
+}
+.stake-modal-content .btn-primary {
+    background: linear-gradient(90deg,#7c3aed 0%,#6366f1 100%);
+    color: #fff;
+}
+.stake-modal-content .btn-primary:active {
+    filter: brightness(0.97);
+}
+.stake-modal-content .btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.stake-modal-content .btn-secondary {
+    background: #f87171;
+    color: #fff;
+}
+.stake-modal-content .btn-success {
+    background: #38a169;
+    color: #fff;
+}
+.stake-modal-content .btn-outline {
+    background: #fff;
+    color: #7c3aed;
+    border: 1.5px solid #a78bfa;
+}
+.stake-modal-content .btn-outline:hover {
+    background: #a78bfa;
+    color: #fff;
+}
+.stake-modal-content .projected-rewards {
+    margin-bottom: 18px;
+    background: #ede9fe;
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: #7c3aed;
+    font-size: 1.13em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+.stake-modal-content .stake-error-msg {
+    color: #f87171;
+    margin-top: 10px;
+    min-height: 22px;
+    text-align: center;
+    font-size: 1.05em;
+    font-weight: 600;
+}
+/* Staking Modal Glassmorphism & Animation */
+.stake-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 1001;
+    align-items: center; justify-content: center;
+    background: rgba(40, 50, 90, 0.25);
+    backdrop-filter: blur(7px) saturate(1.2);
+    animation: fadeInOverlay 0.5s cubic-bezier(.4,0,.2,1);
+    transition: background 0.3s;
+}
+.stake-modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+@keyframes fadeInOverlay {
+    from { background: rgba(40,50,90,0); }
+    to   { background: rgba(40,50,90,0.25); }
+}
+.stake-modal-card {
+    background: rgba(255,255,255,0.85);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px 0 rgba(60,60,120,0.18), 0 1.5px 8px #6366f133;
+    max-width: 430px;
+    width: 97%;
+    margin: auto;
+    position: relative;
+    overflow: hidden;
+    border: 1.5px solid rgba(99,102,241,0.13);
+    animation: modalPopIn 0.45s cubic-bezier(.4,0,.2,1);
+    transition: box-shadow 0.2s, background 0.2s;
+    backdrop-filter: blur(2.5px) saturate(1.1);
+}
+@keyframes modalPopIn {
+    from { transform: translateY(40px) scale(0.97); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+.stake-modal-header {
+    background: linear-gradient(90deg,#6366f1 0%,#38bdf8 100%);
+    padding: 32px 0 20px 0;
+    text-align: center;
+    box-shadow: 0 2px 12px #6366f133;
+    border-bottom: 1.5px solid #e0e7ef;
+}
+.stake-modal-header-content {
+    display: flex; justify-content: center; align-items: center; gap: 12px;
+}
+.stake-modal-header-content i.fa-coins {
+    font-size: 2.2em;
+    color: #fff;
+    filter: drop-shadow(0 2px 8px #6366f1cc);
+    animation: coinSpin 1.2s cubic-bezier(.4,0,.2,1);
+}
+@keyframes coinSpin {
+    from { transform: rotateY(0deg); }
+    to   { transform: rotateY(360deg); }
+}
+.stake-modal-header-content span {
+    font-size: 1.55em;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 8px #6366f1cc;
+}
+.stake-modal-close {
+    position: absolute;
+    top: 22px; right: 28px;
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    color: #fff;
+    cursor: pointer;
+    z-index: 2;
+    transition: color 0.2s;
+}
+.stake-modal-close:hover {
+    color: #f87171;
+}
+.stake-modal-body {
+    padding: 36px 30px 26px 30px;
+}
+/* Enhanced input and button styles for modal */
+.stake-modal-body input[type="number"],
+.stake-modal-body select {
+    width: 100%;
+    padding: 12px 14px;
+    margin-top: 6px;
+    border-radius: 10px;
+    border: 1.5px solid #cbd5e1;
+    font-size: 1.09em;
+    background: #f8fafc;
+    transition: border 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+.stake-modal-body input[type="number"]:focus,
+.stake-modal-body select:focus {
+    border: 1.5px solid #6366f1;
+    box-shadow: 0 0 0 2px #6366f133;
+}
+.stake-modal-body .btn-primary {
+    font-size: 1.15em;
+    padding: 13px 0;
+    border-radius: 10px;
+    background: linear-gradient(90deg,#6366f1 0%,#38bdf8 100%);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 8px #6366f133;
+    transition: background 0.2s, box-shadow 0.2s, filter 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+.stake-modal-body .btn-primary:active {
+    filter: brightness(0.97);
+}
+.stake-modal-body .btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.stake-modal-body .btn-primary.loading::after {
+    content: '';
+    display: inline-block;
+    margin-left: 10px;
+    width: 18px; height: 18px;
+    border: 2.5px solid #fff;
+    border-top: 2.5px solid #38bdf8;
+    border-radius: 50%;
+    animation: spinBtn 0.7s linear infinite;
+    vertical-align: middle;
+}
+@keyframes spinBtn {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.stake-modal-body .section-divider {
+    border: none;
+    border-top: 1.5px solid #e0e7ef;
+    margin: 18px 0 18px 0;
+}
+.stake-modal-body .info-box {
+    font-size: 0.99em;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+}
+.stake-modal-body .projected-rewards {
+    margin-bottom: 18px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #0f172a;
+    font-size: 1.09em;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.stake-modal-body .projected-rewards i {
+    color: #10b981;
+    font-size: 1.2em;
+}
+.stake-modal-body .stake-error-msg {
+    color: #e53e3e;
+    margin-top: 10px;
+    min-height: 22px;
+    text-align: center;
+    font-size: 1.01em;
+}
+body {
+    font-family: 'Inter', Arial, sans-serif;
+    background: #f8fafc;
+    color: #22223b;
+    margin: 0;
+    padding: 0;
+}
+.btn {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 1em;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.btn-primary {
+    background: linear-gradient(90deg,#6366f1 0%,#38bdf8 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px #6366f133;
+}
+.btn-primary:hover {
+    background: linear-gradient(90deg,#4f46e5 0%,#0ea5e9 100%);
+}
+.btn-success {
+    background: #38a169;
+    color: #fff;
+}
+.btn-success:hover {
+    background: #2f855a;
+}
+.btn-secondary {
+    background: #4a5568;
+    color: #fff;
+}
+.btn-secondary:hover {
+    background: #2d3748;
+}
+.btn-outline {
+    background: #fff;
+    color: #6366f1;
+    border: 1.5px solid #6366f1;
+}
+.btn-outline:hover {
+    background: #6366f1;
+    color: #fff;
+}
+input, select {
+    font-family: inherit;
+    font-size: 1em;
+}

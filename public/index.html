@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FundForward - Crowdfunding Platform</title>
+    <meta name="description" content="Fund innovative projects and bring ideas to life">
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components/navigation.css">
+    <link rel="stylesheet" href="css/components/campaign-cards.css">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <a href="index.html" class="brand-link">
+                    <i class="fas fa-hand-holding-heart brand-icon"></i>
+                    <span class="brand-text">FundForward</span>
+                </a>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="index.html" class="nav-link">Discover</a></li>
+                <li class="nav-item"><a href="create.html" class="nav-link">Start Campaign</a></li>
+                <li class="nav-item"><a href="how-it-works.html" class="nav-link">How It Works</a></li>
+                <li class="nav-item"><a href="login.html" class="nav-link">Login</a></li>
+                <li class="nav-item"><a href="signup.html" class="nav-button">Sign Up</a></li>
+            </ul>
+            
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Donation Request Form -->
+        <!-- Modern Staking & Actions Section -->
+        <section class="staking-section" style="background: #f8fafc; padding: 32px 0; border-radius: 12px; margin: 32px auto; max-width: 900px; box-shadow: 0 2px 16px rgba(0,0,0,0.04);">
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; align-items: center;">
+                <button id="open-donation-modal" class="btn btn-primary" style="font-size:1.1em; padding: 14px 36px;">Create a Request</button>
+                <button id="stake-tokens-btn" class="btn btn-primary" style="font-size:1.1em; padding: 14px 36px; background: #6366f1; color: #fff; border: none; border-radius: 8px; box-shadow: 0 2px 8px #6366f13a;">Stake Pool Tokens</button>
+                <button id="view-rewards-btn" class="btn btn-success" style="font-size:1.1em; padding: 14px 36px; background: #38a169; color: #fff; border: none; border-radius: 8px;">View My Rewards</button>
+                <button id="view-history-btn" class="btn btn-secondary" style="font-size:1.1em; padding: 14px 36px; background: #4a5568; color: #fff; border: none; border-radius: 8px;">History</button>
+            </div>
+            <div style="margin: 32px auto 0; max-width: 600px; text-align: center;">
+                <h2 style="font-size:2em; color:#2d3748; margin-bottom:8px;">Stake Your Pool Tokens</h2>
+                <p style="color:#475569; font-size:1.1em;">Earn rewards by staking your pool tokens for flexible periods. Choose your staking plan and start earning today!</p>
+            </div>
+        </section>
+        <div style="display:flex; gap:8px; align-items:center; justify-content:center; margin-bottom:24px;">
+            <input id="campaign-search-input" type="text" placeholder="Enter Campaign ID (UUID)" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; min-width:320px;">
+            <button id="campaign-search-btn" class="btn btn-outline" style="padding: 10px 18px;">Search Campaign</button>
+        </div>
+    <!-- Donation History Modal -->
+    <div id="history-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:600px; width:95%; margin:auto; position:relative;">
+            <button id="close-history-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">Donation History</h2>
+            <div id="history-content" style="text-align:left; font-size:1em; margin-top:20px; max-height:350px; overflow-y:auto;">Loading...</div>
+        </div>
+    </div>
+    <script>
+    // Donation History modal logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewHistoryBtn = document.getElementById('view-history-btn');
+        const historyModal = document.getElementById('history-modal');
+        const closeHistoryBtn = document.getElementById('close-history-modal');
+        const historyContent = document.getElementById('history-content');
+        if (viewHistoryBtn && historyModal && closeHistoryBtn) {
+            viewHistoryBtn.addEventListener('click', async function() {
+                historyModal.style.display = 'flex';
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                let email = user && user.email ? user.email : null;
+                let userId = user && user.user_id ? user.user_id : null;
+                if (!email || !userId) {
+                    historyContent.textContent = 'You must be logged in to view donation history.';
+                    return;
+                }
+                historyContent.textContent = 'Loading...';
+                try {
+                    // Fetch donations made
+                    const madeRes = await fetch(`/api/donation-history?email=${encodeURIComponent(email)}`);
+                    const madeData = await madeRes.json();
+                    // Fetch donations received
+                    const receivedRes = await fetch(`/api/donations-received?user_id=${encodeURIComponent(userId)}`);
+                    const receivedData = await receivedRes.json();
+                    let html = `<h3 style='margin-bottom:8px;'>Donations I've Made</h3>`;
+                    if (madeRes.ok && madeData.success && madeData.history.length > 0) {
+                        html += madeData.history.map(h =>
+                            `<div style='margin-bottom:10px;'>You donated <b>$${h.amount}</b> to campaign: "${h.campaign_title}"<br><span style='font-size:0.95em;color:#666;'>On: ${new Date(h.transaction_date).toLocaleDateString()}</span></div>`
+                        ).join('');
+                    } else {
+                        html += `<div style='color:#888;'>You have not made any donations yet.</div>`;
+                    }
+                    html += `<hr style='margin:18px 0;'>`;
+                    html += `<h3 style='margin-bottom:8px;'>Donations Received for My Campaigns</h3>`;
+                    if (receivedRes.ok && receivedData.success && receivedData.donations.length > 0) {
+                        html += receivedData.donations.map(d =>
+                            `<div style='margin-bottom:10px;'>You received <b>$${d.amount}</b> from <b>${d.donor_name || 'Anonymous'}</b> for campaign: "${d.campaign_title}"<br><span style='font-size:0.95em;color:#666;'>On: ${new Date(d.transaction_date).toLocaleDateString()}</span></div>`
+                        ).join('');
+                    } else {
+                        html += `<div style='color:#888;'>Your campaigns have not received any donations yet.</div>`;
+                    }
+                    historyContent.innerHTML = html;
+                } catch (err) {
+                    historyContent.textContent = 'Error fetching history.';
+                }
+            });
+            closeHistoryBtn.addEventListener('click', function() {
+                historyModal.style.display = 'none';
+            });
+            window.addEventListener('click', function(e) {
+                if (e.target === historyModal) {
+                    historyModal.style.display = 'none';
+                }
+            });
+        }
+    });
+    </script>
+    <!-- View My Rewards Modal -->
+    <div id="rewards-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:600px; width:95%; margin:auto; position:relative;">
+            <button id="close-rewards-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">My Pool Token Rewards</h2>
+            <div id="rewards-content" style="text-align:center; font-size:1em; margin-top:20px;">Loading...</div>
+        </div>
+    </div>
+    <!-- Staking Modal -->
+    <div id="stake-modal" class="stake-modal-overlay">
+        <div class="stake-modal-card nft-style">
+            <button id="close-stake-modal" class="stake-modal-close">&times;</button>
+            <div class="stake-modal-gradient-bg"></div>
+            <div class="stake-modal-content">
+                <div class="stake-modal-icon-title">
+                    <i class="fa-solid fa-coins"></i>
+                    <h2>Stake Pool Token</h2>
+                </div>
+                <div class="stake-modal-desc">Stake your pool tokens and earn rewards! Choose your pool, amount, and period below.</div>
+                <div id="stake-form-content"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // View My Rewards modal logic, staking modal logic, and Stake Tokens button logic
+    document.addEventListener('DOMContentLoaded', function() {
+        // Stake Tokens button logic
+        const stakeTokensBtn = document.getElementById('stake-tokens-btn');
+        if (stakeTokensBtn) {
+            stakeTokensBtn.addEventListener('click', async function() {
+                // Fetch available pool tokens for the user
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                let userId = user && user.user_id ? user.user_id : null;
+                if (!userId) {
+                    alert('You must be logged in to stake tokens.');
+                    return;
+                }
+                // Fetch pools (or wallet tokens)
+                let pools = [];
+                try {
+                    const res = await fetch(`/api/pools`);
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        pools = data.pools || [];
+                    }
+                } catch (e) {}
+                if (!pools.length) {
+                    alert('No pool tokens available for staking.');
+                    return;
+                }
+                // Show a selection modal if more than one pool, else go directly
+                if (pools.length === 1) {
+                    showStakeModal({
+                        symbol: pools[0].symbol,
+                        name: pools[0].name,
+                        id: pools[0].id || pools[0].pool_id,
+                        min_amount: 0.01,
+                        amount: 0
+                    });
+                } else {
+                    // Show a simple selection UI in the stake modal
+                    stakeFormContent.innerHTML = `<div style='margin-bottom:12px;'><b>Select a Pool Token to Stake:</b></div>` +
+                        pools.map(p => `<button class='btn btn-primary select-pool-btn' data-symbol='${p.symbol}' data-name='${p.name}' data-id='${p.id || p.pool_id}' style='margin:4px 0;width:100%;'>${p.symbol} (${p.name})</button>`).join('') +
+                        `<div style='margin-top:16px;'><button id='cancel-stake-select' class='btn btn-secondary' style='width:100%;'>Cancel</button></div>`;
+                    stakeModal.style.display = 'flex';
+                    document.querySelectorAll('.select-pool-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const symbol = btn.getAttribute('data-symbol');
+                            const name = btn.getAttribute('data-name');
+                            const id = btn.getAttribute('data-id');
+                            showStakeModal({ symbol, name, id, min_amount: 0.01, amount: 0 });
+                        });
+                    });
+                    document.getElementById('cancel-stake-select').addEventListener('click', function() {
+                        stakeModal.style.display = 'none';
+                    });
+                }
+            });
+        }
+        const viewRewardsBtn = document.getElementById('view-rewards-btn');
+        const rewardsModal = document.getElementById('rewards-modal');
+        const closeRewardsBtn = document.getElementById('close-rewards-modal');
+        const rewardsContent = document.getElementById('rewards-content');
+        const stakeModal = document.getElementById('stake-modal');
+        const closeStakeModal = document.getElementById('close-stake-modal');
+        const stakeFormContent = document.getElementById('stake-form-content');
+        let rewardsData = [];
+        let selectedToken = null;
+        let selectedPeriod = 12;
+        let accepted = false;
+
+        function showStakeModal(token) {
+            selectedToken = token;
+            selectedPeriod = 12;
+            accepted = false;
+            renderStakeForm();
+            stakeModal.style.display = 'flex';
+        }
+
+        function renderStakeForm() {
+            if (!selectedToken) return;
+            const apyMap = {1: 1, 12: 5, 24: 12};
+            const apy = apyMap[selectedPeriod];
+            const minAmount = selectedToken.amount > 0 ? 0.01 : selectedToken.min_amount;
+            stakeFormContent.innerHTML = `
+                <div style="margin-bottom:10px;"><b>Token:</b> ${selectedToken.symbol} (${selectedToken.name})</div>
+                <div style="margin-bottom:10px;"><b>APY:</b> <span id='stake-apy'>${apy}%</span> <span title='What is staking?' style='cursor:help;color:#3182ce;'>&#9432;</span></div>
+                <div style="margin-bottom:10px;">
+                    <label>Amount to Stake:</label><br>
+                    <input id='stake-amount' type='number' min='${minAmount}' step='0.01' value='${minAmount}' inputmode='decimal' style='width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid #cbd5e1;'>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>Staking Period:</label><br>
+                    <select id='stake-period' style='width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid #cbd5e1;'>
+                        <option value='1'>1 Month (1% APY)</option>
+                        <option value='12' selected>1 Year (5% APY)</option>
+                        <option value='24'>2 Years (12% APY)</option>
+                    </select>
+                </div>
+                <div id='projected-rewards' style='margin-bottom:10px;'></div>
+                <div style='font-size:0.95em; color:#555; margin-bottom:10px;'>
+                    <b>What is staking?</b> Staking locks your tokens for a period to help secure the network and earn rewards. You cannot withdraw until the period ends.
+                </div>
+                <div style='margin-bottom:10px;'><label><input type='checkbox' id='accept-staking'> I understand and accept the staking terms.</label></div>
+                <button id='confirm-stake-btn' class='btn btn-primary' style='width:100%;' disabled>Confirm Stake</button>
+            `;
+            // Add listeners
+            const stakeAmountEl = document.getElementById('stake-amount');
+            const stakePeriodEl = document.getElementById('stake-period');
+            const stakeApyEl = document.getElementById('stake-apy');
+            stakeAmountEl.addEventListener('input', updateProjected);
+            // Prevent mouse wheel from changing amount when focused
+            stakeAmountEl.addEventListener('wheel', (e) => { e.preventDefault(); }, { passive: false });
+            stakePeriodEl.addEventListener('change', function(e) {
+                selectedPeriod = Number(e.target.value);
+                const apyMapLocal = {1: 1, 12: 5, 24: 12};
+                stakeApyEl.textContent = `${apyMapLocal[selectedPeriod]}%`;
+                updateProjected();
+            });
+            document.getElementById('accept-staking').addEventListener('change', function(e) {
+                accepted = e.target.checked;
+                document.getElementById('confirm-stake-btn').disabled = !accepted;
+            });
+            document.getElementById('confirm-stake-btn').addEventListener('click', async function() {
+                if (!accepted) return;
+                const amount = parseFloat(document.getElementById('stake-amount').value);
+                if (isNaN(amount) || amount < minAmount) { alert('Enter a valid amount'); return; }
+                // Call backend
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                if (!user) { alert('You must be logged in'); return; }
+                const res = await fetch('/api/stake', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ amount, periodMonths: selectedPeriod, userId: user.user_id })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert('Stake successful!');
+                    stakeModal.style.display = 'none';
+                    rewardsModal.style.display = 'none';
+                } else {
+                    alert(data.error || 'Stake failed');
+                }
+            });
+            updateProjected();
+        }
+
+        function updateProjected() {
+            const apyMap = {1: 1, 12: 5, 24: 12};
+            const apy = apyMap[selectedPeriod];
+            const amount = parseFloat(document.getElementById('stake-amount').value) || 0;
+            const days = selectedPeriod * 30;
+            const reward = ((amount * apy / 100) * (days / 365)).toFixed(4);
+            document.getElementById('projected-rewards').innerHTML = `<b>Projected Rewards:</b> ${reward}`;
+        }
+
+        if (viewRewardsBtn && rewardsModal && closeRewardsBtn) {
+            viewRewardsBtn.addEventListener('click', async function() {
+                rewardsModal.style.display = 'flex';
+                let user = window.getLoggedInUser ? window.getLoggedInUser() : null;
+                let userId = user && user.user_id ? user.user_id : null;
+                if (!userId) {
+                    rewardsContent.textContent = 'You must be logged in to view rewards.';
+                    return;
+                }
+                rewardsContent.textContent = 'Loading...';
+                try {
+                    const [walletRes, stakesRes, detailRes] = await Promise.all([
+                        fetch(`/api/wallet/${userId}`),
+                        fetch(`/api/my-stakes?userId=${encodeURIComponent(userId)}`),
+                        fetch(`/api/user-rewards-detail?email=${encodeURIComponent(user.email)}`)
+                    ]);
+                    const [walletData, stakesData, detailData] = await Promise.all([walletRes.json(), stakesRes.json(), detailRes.json()]);
+                    let html = '';
+                    if (walletRes.ok && walletData.success && Array.isArray(walletData.tokens) && walletData.tokens.length) {
+                        html += `<h3 style='margin:8px 0;'>Wallet Balances</h3>`;
+                        html += `<table style='width:100%;border-collapse:collapse;'><tr style='background:#f3f4f6;'><th>Token</th><th>Name</th><th>Balance</th><th>APY</th></tr>`;
+                        for (const t of walletData.tokens) {
+                            html += `<tr style='border-bottom:1px solid #e2e8f0;'><td>${t.symbol}</td><td>${t.name}</td><td>${Number(t.balance).toFixed(4)}</td><td>${t.apy}%</td></tr>`;
+                        }
+                        html += '</table>';
+                    } else {
+                        html += '<div style="color:#888;">No pool tokens in your wallet.</div>';
+                    }
+                    html += `<hr style='margin:16px 0;'>`;
+                    html += `<h3 style='margin:8px 0;'>Active Stakes</h3>`;
+                    if (stakesRes.ok && stakesData.success && Array.isArray(stakesData.stakes) && stakesData.stakes.length) {
+                        html += `<table style='width:100%;border-collapse:collapse;'><tr style='background:#f3f4f6;'><th>Token</th><th>Amount</th><th>Period</th><th>Unlocks In</th></tr>`;
+                        for (const s of stakesData.stakes) {
+                            const seconds = Math.max(0, Math.floor(Number(s.seconds_remaining || 0)));
+                            const days = Math.floor(seconds / 86400);
+                            const hours = Math.floor((seconds % 86400) / 3600);
+                            const mins = Math.floor((seconds % 3600) / 60);
+                            html += `<tr style='border-bottom:1px solid #e2e8f0;'><td>${s.symbol}</td><td>${Number(s.amount).toFixed(4)}</td><td>${s.period_months} mo</td><td>${days}d ${hours}h ${mins}m</td></tr>`;
+                        }
+                        html += '</table>';
+                    } else {
+                        html += '<div style="color:#888;">No active stakes.</div>';
+                    }
+                    // Rewards detail
+                    if (detailRes.ok && detailData.success) {
+                        html += `<hr style='margin:16px 0;'>`;
+                        html += `<h3 style='margin:8px 0;'>Reward Points</h3>`;
+                        html += `<div style='margin-bottom:8px;'><b>Total:</b> ${Number(detailData.total_reward_points || 0).toFixed(2)}</div>`;
+                        if (Array.isArray(detailData.campaigns) && detailData.campaigns.length) {
+                            html += `<table style='width:100%;border-collapse:collapse;'><tr style='background:#f3f4f6;'><th>Campaign</th><th>Points</th></tr>`;
+                            for (const r of detailData.campaigns) {
+                                html += `<tr style='border-bottom:1px solid #e2e8f0;'><td>${r.campaign_title}</td><td>${Number(r.reward_points).toFixed(2)}</td></tr>`;
+                            }
+                            html += `</table>`;
+                        } else {
+                            html += `<div style='color:#888;'>No rewards yet.</div>`;
+                        }
+                    }
+                    rewardsContent.innerHTML = html;
+                } catch (err) {
+                    rewardsContent.textContent = 'Error fetching rewards.';
+                }
+            });
+            closeRewardsBtn.addEventListener('click', function() {
+                rewardsModal.style.display = 'none';
+            });
+            window.addEventListener('click', function(e) {
+                if (e.target === rewardsModal) {
+                    rewardsModal.style.display = 'none';
+                }
+            });
+        }
+        if (closeStakeModal && stakeModal) {
+            closeStakeModal.addEventListener('click', function() { stakeModal.style.display = 'none'; });
+            window.addEventListener('click', function(e) { if (e.target === stakeModal) stakeModal.style.display = 'none'; });
+        }
+    });
+    </script>
+    </div>
+
+    <!-- Donation Request Modal -->
+    <div id="donation-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:500px; width:90%; margin:auto; position:relative;">
+            <button id="close-donation-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">Create a Donation Request</h2>
+            <form id="donation-request-form" class="donation-form">
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label for="requester" style="display:block; margin-bottom:6px; color:#4a5568;">Your Name</label>
+                    <input type="text" id="requester" name="requester" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label for="title" style="display:block; margin-bottom:6px; color:#4a5568;">Title</label>
+                    <input type="text" id="title" name="title" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label for="description" style="display:block; margin-bottom:6px; color:#4a5568;">Description</label>
+                    <textarea id="description" name="description" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #cbd5e1; min-height:80px;"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label for="goal" style="display:block; margin-bottom:6px; color:#4a5568;">Funding Goal ($)</label>
+                    <input type="number" id="goal" name="goal" min="1" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; background:#3182ce; color:#fff; padding:12px; border:none; border-radius:6px; font-size:1.1em;">Submit Request</button>
+                <div id="donation-request-message" style="margin-top:16px; text-align:center;"></div>
+            </form>
+        </div>
+    </div>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Bring Creative Projects to Life</h1>
+            <p class="hero-subtitle">Support innovators and creators in bringing their ideas to reality through community funding</p>
+            <div class="hero-actions">
+                <a href="create.html" class="btn btn-primary">Start a Campaign</a>
+                <a href="#featured-campaigns" class="btn btn-secondary">Explore Projects</a>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="floating-card card-1">
+                <div class="card-content">
+                    <h4>Creative Projects</h4>
+                    <p>Funding goal: $5,000</p>
+                </div>
+            </div>
+            <div class="floating-card card-2">
+                <div class="card-content">
+                    <h4>Tech Innovations</h4>
+                    <p>Funding goal: $15,000</p>
+                </div>
+            </div>
+            <div class="floating-card card-3">
+                <div class="card-content">
+                    <h4>Community Initiatives</h4>
+                    <p>Funding goal: $2,500</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Campaigns Section -->
+    <section id="featured-campaigns" class="campaigns-section">
+        <div class="container">
+            <h2 class="section-title">Featured Campaigns</h2>
+            <p class="section-subtitle">Discover innovative projects that need your support</p>
+            
+            <div class="campaign-filters">
+                <button class="filter-btn active" data-category="all">All</button>
+                <button class="filter-btn" data-category="technology">Technology</button>
+                <button class="filter-btn" data-category="creative">Creative</button>
+                <button class="filter-btn" data-category="community">Community</button>
+            </div>
+            
+            <div class="campaigns-grid" id="campaigns-container">
+                <!-- Campaign cards will be dynamically loaded here -->
+            </div>
+            
+            <div class="section-actions">
+                <a href="browse.html" class="btn btn-outline">View All Campaigns</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+        <div class="container">
+            <h2 class="section-title">How FundForward Works</h2>
+            
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-icon">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <h3>1. Submit Your Idea</h3>
+                    <p>Create a campaign page for your project with details about your goals and funding needs.</p>
+                </div>
+                
+                <div class="step-card">
+                    <div class="step-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>2. Share With Community</h3>
+                    <p>Promote your campaign through social media and engage with potential supporters.</p>
+                </div>
+                
+                <div class="step-card">
+                    <div class="step-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <h3>3. Receive Funding</h3>
+                    <p>Collect contributions from backers who believe in your project and want to see it succeed.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="statistics">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3 class="stat-number" data-target="1256">0</h3>
+                    <p class="stat-label">Projects Funded</p>
+                </div>
+                <div class="stat-item">
+                    <h3 class="stat-number" data-target="4.8">0</h3>
+                    <p class="stat-label">Million Raised</p>
+                </div>
+                <div class="stat-item">
+                    <h3 class="stat-number" data-target="89562">0</h3>
+                    <p class="stat-label">Active Supporters</p>
+                </div>
+                <div class="stat-item">
+                    <h3 class="stat-number" data-target="72">0</h3>
+                    <p class="stat-label">Success Rate</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h4>FundForward</h4>
+                    <p>Empowering innovators and creators to bring their ideas to life through community support.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-col">
+                    <h4>Explore</h4>
+                    <ul>
+                        <li><a href="#">Discover Projects</a></li>
+                        <li><a href="#">Start a Campaign</a></li>
+                        <li><a href="#">How It Works</a></li>
+                        <li><a href="#">Success Stories</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Funding Tips</a></li>
+                        <li><a href="#">Support Center</a></li>
+                        <li><a href="#">API Documentation</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Cookie Policy</a></li>
+                        <li><a href="#">Copyright Notice</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 FundForward. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Files -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/components/campaign-loader.js"></script>
+    <script src="js/components/donation-handler.js"></script>
+    <script src="js/app.js"></script>
+    <!-- (Removed Rewards modal and related JS: rewards are now automatic) -->
+
+    <!-- Simple Details Modal -->
+    <div id="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:28px; max-width:460px; width:92%; position:relative;">
+            <button id="details-close" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom:16px; color:#2d3748;">Campaign Details</h2>
+            <div id="details-content" style="font-size:1.05em; color:#2d3748; line-height:1.6"></div>
+            <div style="text-align:center; margin-top:20px;">
+                <button id="details-ok" class="btn btn-primary" style="padding:10px 22px;">OK</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

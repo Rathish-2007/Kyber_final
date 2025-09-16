@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
     city VARCHAR(100),
     is_featured BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    wallet_address VARCHAR(42)
 );
 
 -- Drop old donors table if it exists

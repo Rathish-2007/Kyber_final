@@ -1,6 +1,9 @@
 // API Integration Functions
-const isLiveServer = window.location.port === '5500' || window.location.hostname === '127.0.0.1';
-const API_BASE_URL = isLiveServer ? 'http://localhost:3000' : `http://${window.location.host}`;
+const isFileProtocol = window.location.protocol === 'file:' || !window.location.host;
+const isVsLiveServer = window.location.port === '5500';
+const isLocalhost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+// If opened from file system or VSCode Live Server, default to backend on 3000
+const API_BASE_URL = (isFileProtocol || isVsLiveServer) ? 'http://localhost:3000' : `${window.location.protocol}//${window.location.host}`;
 
 // Generic API request function
 async function apiRequest(endpoint, options = {}) {
@@ -14,10 +17,8 @@ async function apiRequest(endpoint, options = {}) {
     const config = { ...defaultOptions, ...options };
     try {
         const response = await fetch(url, config);
-        // We need to handle cases where the response is not ok but still contains JSON
         const data = await response.json();
         if (!response.ok) {
-            // Throw an error with the message from the API if available
             throw new Error(data.error || `API error: ${response.status} ${response.statusText}`);
         }
         return data;
@@ -32,10 +33,11 @@ async function fetchCampaigns(filters = {}) {
     return apiRequest('/api/campaigns');
 }
 
+// --- MODIFIED ---
+// This function now uses the dedicated backend endpoint to fetch a single campaign.
 async function fetchCampaignById(campaignId) {
-    // This function needs a dedicated endpoint for scalability, but for now, we filter from all campaigns.
-    const campaigns = await apiRequest('/api/campaigns');
-    return campaigns.find(campaign => campaign.campaign_id === campaignId);
+    // This is much more efficient than fetching all campaigns.
+    return apiRequest(`/api/campaign/${campaignId}`);
 }
 
 async function createCampaign(campaignData) {

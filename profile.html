@@ -7,6 +7,129 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/components/navigation.css">
     <link rel="stylesheet" href="css/components/campaign-cards.css">
+    <style>
+        /* profile.css */
+
+/* General Body and Container Styles */
+body {
+    background-color: #f0f2f5;
+    font-family: Arial, sans-serif;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Headings and Text */
+h1 {
+    font-size: 2.5em;
+    color: #007bff;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+h2 {
+    font-size: 1.8em;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+h3 {
+    font-size: 1.2em;
+    color: #555;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+/* Section Styling */
+section {
+    margin-top: 40px;
+}
+
+/* List Items */
+.list-item {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.list-item p {
+    margin: 0;
+    font-size: 1em;
+}
+
+.list-item .meta {
+    font-size: 0.9em;
+    color: #888;
+}
+
+.list-item strong {
+    color: #007bff;
+}
+
+/* No data message */
+#my-campaigns-grid:empty:before,
+#donations-made-list:empty:before,
+#donations-received-list:empty:before {
+    content: "No items to display.";
+    color: #888;
+    display: block;
+    text-align: center;
+    padding: 20px;
+}
+
+.nav-menu {
+
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+                flex-direction: column;
+                position: absolute;
+                top: 80px;
+                left: 0;
+                width: 100%;
+                background-color: var(--card-bg);
+                padding: 1rem 0;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            }
+            .nav-menu.active {
+                display: flex;
+            }
+            .nav-item {
+                width: 100%;
+                text-align: center;
+                padding: 10px 0;
+            }
+            .nav-button {
+                display: block;
+                margin: 10px auto;
+                width: 90%;
+            }
+            .hamburger {
+                display: flex;
+            }
+        }
+    </style>
 </head>
 <body>
     <header class="header">

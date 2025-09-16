@@ -49,7 +49,6 @@
         <section class="staking-section" style="background: #f8fafc; padding: 32px 0; border-radius: 12px; margin: 32px auto; max-width: 900px; box-shadow: 0 2px 16px rgba(0,0,0,0.04);">
             <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; align-items: center;">
                 <button id="open-donation-modal" class="btn btn-primary" style="font-size:1.1em; padding: 14px 36px;">Create a Request</button>
-                <button id="stake-tokens-btn" class="btn btn-primary" style="font-size:1.1em; padding: 14px 36px; background: #6366f1; color: #fff; border: none; border-radius: 8px; box-shadow: 0 2px 8px #6366f13a;">Stake Pool Tokens</button>
                 <button id="view-rewards-btn" class="btn btn-success" style="font-size:1.1em; padding: 14px 36px; background: #38a169; color: #fff; border: none; border-radius: 8px;">View My Rewards</button>
                 <button id="view-history-btn" class="btn btn-secondary" style="font-size:1.1em; padding: 14px 36px; background: #4a5568; color: #fff; border: none; border-radius: 8px;">History</button>
             </div>
@@ -138,19 +137,6 @@
     </div>
     <!-- Staking Modal -->
     <div id="stake-modal" class="stake-modal-overlay">
-        <div class="stake-modal-card nft-style">
-            <button id="close-stake-modal" class="stake-modal-close">&times;</button>
-            <div class="stake-modal-gradient-bg"></div>
-            <div class="stake-modal-content">
-                <div class="stake-modal-icon-title">
-                    <i class="fa-solid fa-coins"></i>
-                    <h2>Stake Pool Token</h2>
-                </div>
-                <div class="stake-modal-desc">Stake your pool tokens and earn rewards! Choose your pool, amount, and period below.</div>
-                <div id="stake-form-content"></div>
-            </div>
-        </div>
-    </div>
     <script>
     // View My Rewards modal logic, staking modal logic, and Stake Tokens button logic
     document.addEventListener('DOMContentLoaded', function() {

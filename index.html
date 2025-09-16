@@ -16,6 +16,498 @@
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+
+         /* CSS Reset and Base Styles */
+        :root {
+            --primary-color: #3182ce;
+            --secondary-color: #6366f1;
+            --success-color: #38a169;
+            --info-color: #4a5568;
+            --bg-color: #f7fafc;
+            --text-dark: #1a202c;
+            --text-medium: #4a5568;
+            --text-light: #718096;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Utility Classes */
+        .text-center { text-align: center; }
+        .flex-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .gap-4 { gap: 16px; }
+        .gap-2 { gap: 8px; }
+        .flex-wrap { flex-wrap: wrap; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-8 { margin-bottom: 2rem; }
+
+        /* General Components */
+        .section {
+            padding: 60px 0;
+        }
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+        .section-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-medium);
+            margin-bottom: 2.5rem;
+        }
+
+        /* Buttons */
+        .btn {
+            font-size: 1.08em;
+            padding: 14px 36px;
+            border-radius: 10px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background-color: #2c6ca0;
+        }
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: #fff;
+        }
+        .btn-secondary:hover {
+            background-color: #5558c4;
+        }
+        .btn-success {
+            background-color: var(--success-color);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background-color: #328359;
+        }
+        .btn-info {
+            background-color: var(--info-color);
+            color: #fff;
+        }
+        .btn-info:hover {
+            background-color: #3b424f;
+        }
+        .btn-outline {
+            background-color: var(--card-bg);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            padding: 12px 32px;
+            text-decoration: none;
+        }
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: #fff;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-medium);
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        #transaction-search-input {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            min-width: 320px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        #transaction-search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* Navigation Header */
+        .header {
+            background-color: var(--card-bg);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 20px;
+        }
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .brand-link {
+            text-decoration: none;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .brand-icon {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+        }
+        .brand-text {
+            font-weight: 600;
+        }
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-medium);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+        .nav-button {
+            background-color: var(--primary-color);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        .nav-button:hover {
+            background-color: #2c6ca0;
+        }
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 5px;
+        }
+        .hamburger .bar {
+            width: 25px;
+            height: 3px;
+            background-color: var(--text-dark);
+            transition: all 0.3s ease;
+        }
+        @media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+                flex-direction: column;
+                position: absolute;
+                top: 80px;
+                left: 0;
+                width: 100%;
+                background-color: var(--card-bg);
+                padding: 1rem 0;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            }
+            .nav-menu.active {
+                display: flex;
+            }
+            .nav-item {
+                width: 100%;
+                text-align: center;
+                padding: 10px 0;
+            }
+            .nav-button {
+                display: block;
+                margin: 10px auto;
+                width: 90%;
+            }
+            .hamburger {
+                display: flex;
+            }
+        }
+
+        /* Hero Section */
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 80px 20px;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            min-height: 500px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        .hero-content {
+            max-width: 550px;
+        }
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-medium);
+            margin-bottom: 2rem;
+        }
+        .hero-actions .btn {
+            margin-right: 1rem;
+            text-decoration: none;
+        }
+        .hero-visual {
+            position: relative;
+            width: 450px;
+            height: 300px;
+        }
+        .floating-card {
+            position: absolute;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+        .card-1 { top: 10%; left: 0; transform: rotate(-5deg); animation-delay: 0s; }
+        .card-2 { top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(5deg); animation-delay: 2s; }
+        .card-3 { bottom: 10%; right: 0; transform: rotate(-3deg); animation-delay: 4s; }
+        .floating-card h4 { font-size: 1.1rem; color: var(--text-dark); margin-bottom: 5px; }
+        .floating-card p { font-size: 0.9rem; color: var(--text-light); }
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* How It Works */
+        .how-it-works {
+            padding: 80px 0;
+            text-align: center;
+        }
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-top: 50px;
+        }
+        .step-card {
+            background-color: var(--card-bg);
+            padding: 40px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .step-card:hover {
+            transform: translateY(-5px);
+        }
+        .step-icon {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        .step-card h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .step-card p {
+            color: var(--text-medium);
+        }
+
+        /* Statistics */
+        .statistics {
+            background-color: var(--primary-color);
+            padding: 60px 0;
+            color: #fff;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: var(--text-dark);
+            color: #fff;
+            padding: 60px 0 20px;
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .footer-col h4 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .footer-col p {
+            font-size: 0.95rem;
+            color: var(--text-light);
+            margin-bottom: 20px;
+        }
+        .footer-col ul {
+            list-style: none;
+        }
+        .footer-col ul li {
+            margin-bottom: 10px;
+        }
+        .footer-col ul li a {
+            text-decoration: none;
+            color: var(--text-light);
+            transition: color 0.3s;
+        }
+        .footer-col ul li a:hover {
+            color: var(--primary-color);
+        }
+        .social-links a {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-right: 15px;
+            transition: color 0.3s;
+        }
+        .social-links a:hover {
+            color: var(--primary-color);
+        }
+        .footer-bottom {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-light);
+        }
+        .footer-bottom p {
+            font-size: 0.9rem;
+        }
+
+        /* Modals (Generic styles) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            border-radius: 22px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 44px 38px;
+            max-width: 600px;
+            width: 95%;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 18px;
+            right: 22px;
+            background: none;
+            border: none;
+            font-size: 2em;
+            color: #888;
+            cursor: pointer;
+        }
+        .modal-title {
+            text-align: center;
+            margin-bottom: 28px;
+            color: var(--primary-color);
+            font-size: 2em;
+            font-weight: 700;
+        }
+        .modal-body {
+            font-size: 1.08em;
+            color: var(--text-medium);
+            max-height: 350px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        
+        /* Table styles inside modals */
+        .modal-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+        .modal-body th, .modal-body td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .modal-body th {
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation Header -->
@@ -47,21 +539,22 @@
     <!-- Donation Request Form -->
     <!-- Create a Request Button and Stake Tokens Button -->
     <div style="text-align:center; margin: 32px 0; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
-    <button id="open-donation-modal" class="btn btn-primary" style="font-size:1.1em; padding: 12px 32px;">Create a Request</button>
-    <!-- Removed old staking modal and its JS logic. Use 'View My Rewards' for staking. -->
-    <button id="stake-tokens-btn" class="btn btn-primary" style="font-size:1.1em; padding: 12px 32px; background: #6366f1; color: #fff; border: none; border-radius: 6px;">Stake Tokens</button>
-    <button id="view-rewards-btn" class="btn btn-success" style="font-size:1.1em; padding: 12px 32px; background: #38a169; color: #fff; border: none; border-radius: 6px;">View My Rewards</button>
-    <button id="view-history-btn" class="btn btn-secondary" style="font-size:1.1em; padding: 12px 32px; background: #4a5568; color: #fff; border: none; border-radius: 6px;">History</button>
-    <div style="display:flex; gap:8px; align-items:center;">
-        <input id="campaign-search-input" type="text" placeholder="Enter Campaign ID (UUID)" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; min-width:320px;">
-        <button id="campaign-search-btn" class="btn btn-outline" style="padding: 10px 18px;">Search Campaign</button>
+    <button id="open-donation-modal" class="btn btn-primary" style="font-size:1.1em; padding: 14px 36px; background:#3182ce; color:#fff; border:none; border-radius:10px; font-weight:600; box-shadow:0 2px 8px rgba(49,130,206,0.08);">Create a Request</button>
+    <button id="stake-tokens-btn" class="btn btn-primary" style="font-size:1.1em; padding: 14px 36px; background: #6366f1; color: #fff; border: none; border-radius: 10px; font-weight:600; box-shadow:0 2px 8px rgba(99,102,241,0.08);">Stake Tokens</button>
+    <button id="view-rewards-btn" class="btn btn-success" style="font-size:1.1em; padding: 14px 36px; background: #38a169; color: #fff; border: none; border-radius: 10px; font-weight:600; box-shadow:0 2px 8px rgba(56,161,105,0.08);">View My Rewards</button>
+    <button id="view-history-btn" class="btn btn-secondary" style="font-size:1.1em; padding: 14px 36px; background: #4a5568; color: #fff; border: none; border-radius: 10px; font-weight:600; box-shadow:0 2px 8px rgba(74,85,104,0.08);">History</button>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:12px;">
+        <input id="transaction-search-input" type="text" placeholder="Enter Transaction ID (UUID or short ID)" style="padding:12px; border:1px solid #cbd5e1; border-radius:10px; min-width:320px; font-size:1.08em;">
+        <button id="transaction-search-btn" class="btn btn-outline" style="padding: 12px 22px; background:#fff; color:#3182ce; border:2px solid #3182ce; border-radius:10px; font-weight:600; cursor:pointer;">Search Transaction</button>
     </div>
     <!-- Donation History Modal -->
     <div id="history-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:600px; width:95%; margin:auto; position:relative;">
-            <button id="close-history-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
-            <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">Donation History</h2>
-            <div id="history-content" style="text-align:left; font-size:1em; margin-top:20px; max-height:350px; overflow-y:auto;">Loading...</div>
+        <div style="background:#fff; border-radius:22px; box-shadow:0 8px 32px rgba(0,0,0,0.10); padding:44px 38px; max-width:600px; width:95%; margin:auto; position:relative;">
+            <button id="close-history-modal" style="position:absolute; top:18px; right:22px; background:none; border:none; font-size:2em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 28px; color: #2b6cb0; font-size:2em; font-weight:700;">Donation History</h2>
+            <div id="history-content" style="text-align:left; font-size:1.08em; margin-top:20px; max-height:350px; overflow-y:auto;">
+                Loading...
+            </div>
         </div>
     </div>
     <script>
@@ -91,9 +584,14 @@
                     const receivedData = await receivedRes.json();
                     let html = `<h3 style='margin-bottom:8px;'>Donations I've Made</h3>`;
                     if (madeRes.ok && madeData.success && madeData.history.length > 0) {
-                        html += madeData.history.map(h =>
-                            `<div style='margin-bottom:10px;'>You donated <b>$${h.amount}</b> to campaign: "${h.campaign_title}"<br><span style='font-size:0.95em;color:#666;'>On: ${new Date(h.transaction_date).toLocaleDateString()}</span></div>`
-                        ).join('');
+                        html += madeData.history.map(h => {
+                            const shortTxnId = h.transaction_id ? h.transaction_id.replace(/-/g, '').slice(0, 16) : '';
+                            return `<div style='margin-bottom:10px;'>
+                                Transaction ID: <b>${h.transaction_id}</b><br>
+                                You donated <b>$${h.amount}</b> to campaign: "${h.campaign_title}"<br>
+                                <span style='font-size:0.95em;color:#666;'>On: ${new Date(h.transaction_date).toLocaleDateString()}</span>
+                            </div>`;
+                        }).join('');
                     } else {
                         html += `<div style='color:#888;'>You have not made any donations yet.</div>`;
                     }
@@ -124,17 +622,17 @@
     </script>
     <!-- View My Rewards Modal -->
     <div id="rewards-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:600px; width:95%; margin:auto; position:relative;">
-            <button id="close-rewards-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
-            <h2 class="section-title" style="text-align:center; margin-bottom: 24px; color: #2d3748;">My Pool Token Rewards</h2>
-            <div id="rewards-content" style="text-align:center; font-size:1em; margin-top:20px;">Loading...</div>
+        <div style="background:#fff; border-radius:22px; box-shadow:0 8px 32px rgba(0,0,0,0.10); padding:44px 38px; max-width:600px; width:95%; margin:auto; position:relative;">
+            <button id="close-rewards-modal" style="position:absolute; top:18px; right:22px; background:none; border:none; font-size:2em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 28px; color: #2b6cb0; font-size:2em; font-weight:700;">My Pool Token Rewards</h2>
+            <div id="rewards-content" style="text-align:center; font-size:1.08em; margin-top:20px;">Loading...</div>
         </div>
     </div>
     <!-- Staking Modal -->
     <div id="stake-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1001; align-items:center; justify-content:center;">
-        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:32px; max-width:400px; width:90%; margin:auto; position:relative;">
-            <button id="close-stake-modal" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer;">&times;</button>
-            <h2 class="section-title" style="text-align:center; margin-bottom: 18px; color: #2d3748;">Stake Pool Token</h2>
+        <div style="background:#fff; border-radius:22px; box-shadow:0 8px 32px rgba(0,0,0,0.10); padding:44px 38px; max-width:400px; width:90%; margin:auto; position:relative;">
+            <button id="close-stake-modal" style="position:absolute; top:18px; right:22px; background:none; border:none; font-size:2em; color:#888; cursor:pointer;">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom: 22px; color: #2b6cb0; font-size:1.5em; font-weight:700;">Stake Pool Token</h2>
             <div id="stake-form-content"></div>
         </div>
     </div>
@@ -431,27 +929,28 @@
     </section>
 
     <!-- Featured Campaigns Section -->
-    <section id="featured-campaigns" class="campaigns-section">
-        <div class="container">
-            <h2 class="section-title">Featured Campaigns</h2>
-            <p class="section-subtitle">Discover innovative projects that need your support</p>
-            
-            <div class="campaign-filters">
-                <button class="filter-btn active" data-category="all">All</button>
-                <button class="filter-btn" data-category="technology">Technology</button>
-                <button class="filter-btn" data-category="creative">Creative</button>
-                <button class="filter-btn" data-category="community">Community</button>
-            </div>
-            
-            <div class="campaigns-grid" id="campaigns-container">
-                <!-- Campaign cards will be dynamically loaded here -->
-            </div>
-            
-            <div class="section-actions">
-                <a href="browse.html" class="btn btn-outline">View All Campaigns</a>
-            </div>
+    <section id="featured-campaigns" class="campaigns-section" style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color:#f7fafc; padding:60px 0;">
+    <div class="container" style="max-width:1100px; margin:auto; padding:0 20px;">
+        <h2 class="section-title" style="font-size:2.5rem; color:#1a202c; font-weight:700; text-align:center; margin-bottom:12px;">Featured Campaigns ✨</h2>
+        <p class="section-subtitle" style="text-align:center; color:#4a5568; font-size:1.25rem; margin-bottom:40px; max-width:600px; margin-left:auto; margin-right:auto;">
+            Discover innovative projects that need your support and help bring great ideas to life!
+        </p>
+
+        <div class="campaign-filters" style="display:flex; justify-content:center; gap:16px; margin-bottom:40px; flex-wrap:wrap;">
+            <button class="filter-btn active" data-category="all" style="padding:12px 30px; border-radius:30px; border:none; background:#3182ce; color:#fff; font-weight:600; font-size:1rem; cursor:pointer; transition:all 0.3s ease; box-shadow:0 4px 15px rgba(49,130,206,0.3); border:2px solid #3182ce;">All</button>
+            <button class="filter-btn" data-category="technology" style="padding:12px 30px; border-radius:30px; border:none; background:#fff; color:#3182ce; font-weight:600; font-size:1rem; cursor:pointer; transition:all 0.3s ease; border:2px solid #e2e8f0; box-shadow:0 4px 15px rgba(0,0,0,0.05);">Technology</button>
+            <button class="filter-btn" data-category="creative" style="padding:12px 30px; border-radius:30px; border:none; background:#fff; color:#3182ce; font-weight:600; font-size:1rem; cursor:pointer; transition:all 0.3s ease; border:2px solid #e2e8f0; box-shadow:0 4px 15px rgba(0,0,0,0.05);">Creative</button>
+            <button class="filter-btn" data-category="community" style="padding:12px 30px; border-radius:30px; border:none; background:#fff; color:#3182ce; font-weight:600; font-size:1rem; cursor:pointer; transition:all 0.3s ease; border:2px solid #e2e8f0; box-shadow:0 4px 15px rgba(0,0,0,0.05);">Community</button>
         </div>
-    </section>
+
+        <div class="campaigns-grid" id="campaigns-container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:32px; margin-bottom:48px;">
+            </div>
+
+        <div class="section-actions" style="text-align:center; margin-top:10px;">
+            <a href="browse.html" class="btn btn-outline" style="display:inline-block; padding:14px 40px; border-radius:10px; font-size:1.1rem; border:2px solid #3182ce; color:#3182ce; background:#fff; font-weight:600; text-decoration:none; transition:all 0.3s ease; box-shadow:0 4px 15px rgba(49,130,206,0.2);">View All Campaigns</a>
+        </div>
+    </div>
+</section>
 
     <!-- How It Works Section -->
     <section class="how-it-works">
@@ -572,12 +1071,12 @@
 
     <!-- Simple Details Modal -->
     <div id="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.07); padding:28px; max-width:460px; width:92%; position:relative;">
-            <button id="details-close" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:1.5em; color:#888; cursor:pointer">&times;</button>
-            <h2 class="section-title" style="text-align:center; margin-bottom:16px; color:#2d3748;">Campaign Details</h2>
-            <div id="details-content" style="font-size:1.05em; color:#2d3748; line-height:1.6"></div>
+        <div style="background:#fff; border-radius:22px; box-shadow:0 8px 32px rgba(0,0,0,0.10); padding:44px 38px; max-width:500px; width:95%; position:relative;">
+            <button id="details-close" style="position:absolute; top:18px; right:22px; background:none; border:none; font-size:2em; color:#888; cursor:pointer">&times;</button>
+            <h2 class="section-title" style="text-align:center; margin-bottom:24px; color:#2b6cb0; font-size:1.5em; font-weight:700;">Campaign Details</h2>
+            <div id="details-content" style="font-size:1.08em; color:#2d3748; line-height:1.7; margin-bottom:18px;"></div>
             <div style="text-align:center; margin-top:20px;">
-                <button id="details-ok" class="btn btn-primary" style="padding:10px 22px;">OK</button>
+                <button id="details-ok" class="btn btn-primary" style="padding:12px 28px; font-size:1.08em; border-radius:10px;">OK</button>
             </div>
         </div>
     </div>
